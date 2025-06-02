@@ -1,0 +1,204 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  FileText, 
+  FolderOpen, 
+  Save, 
+  Settings, 
+  Search,
+  GitBranch,
+  Terminal,
+  HelpCircle,
+  ChevronDown,
+  Brain
+} from 'lucide-react';
+
+interface MenuBarProps {
+  onAction: (action: string) => void;
+}
+
+interface MenuItem {
+  label: string;
+  action?: string;
+  shortcut?: string;
+  icon?: React.ReactNode;
+  submenu?: MenuItem[];
+  separator?: boolean;
+}
+
+const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const menuItems: Record<string, MenuItem[]> = {
+    File: [
+      { label: 'New File', action: 'new-file', shortcut: 'Ctrl+N', icon: <FileText className="w-4 h-4" /> },
+      { label: 'Open File', action: 'open-file', shortcut: 'Ctrl+O', icon: <FolderOpen className="w-4 h-4" /> },
+      { separator: true },
+      { label: 'Save', action: 'save-file', shortcut: 'Ctrl+S', icon: <Save className="w-4 h-4" /> },
+      { label: 'Save As...', action: 'save-as', shortcut: 'Ctrl+Shift+S' },
+      { separator: true },
+      { label: 'Exit', action: 'exit', shortcut: 'Ctrl+Q' },
+    ],
+    Edit: [
+      { label: 'Undo', action: 'undo', shortcut: 'Ctrl+Z' },
+      { label: 'Redo', action: 'redo', shortcut: 'Ctrl+Y' },
+      { separator: true },
+      { label: 'Cut', action: 'cut', shortcut: 'Ctrl+X' },
+      { label: 'Copy', action: 'copy', shortcut: 'Ctrl+C' },
+      { label: 'Paste', action: 'paste', shortcut: 'Ctrl+V' },
+      { separator: true },
+      { label: 'Find', action: 'find', shortcut: 'Ctrl+F', icon: <Search className="w-4 h-4" /> },
+      { label: 'Replace', action: 'replace', shortcut: 'Ctrl+H' },
+    ],
+    View: [
+      { label: 'Explorer', action: 'toggle-explorer', shortcut: 'Ctrl+Shift+E' },
+      { label: 'Search', action: 'toggle-search', shortcut: 'Ctrl+Shift+F', icon: <Search className="w-4 h-4" /> },
+      { label: 'Source Control', action: 'toggle-git', shortcut: 'Ctrl+Shift+G', icon: <GitBranch className="w-4 h-4" /> },
+      { label: 'Terminal', action: 'toggle-terminal', shortcut: 'Ctrl+`', icon: <Terminal className="w-4 h-4" /> },
+      { separator: true },
+      { label: 'Toggle Menu Bar', action: 'toggle-menu', shortcut: 'Ctrl+B' },
+      { label: 'Command Palette', action: 'command-palette', shortcut: 'Ctrl+Shift+P' },
+    ],
+    AI: [
+      { label: 'Analyze Code', action: 'analyze-code', shortcut: 'Ctrl+Shift+A', icon: <Brain className="w-4 h-4" /> },
+      { label: 'Explain Code', action: 'explain-code' },
+      { label: 'Find Issues', action: 'find-issues' },
+      { label: 'Optimize Code', action: 'optimize-code' },
+      { separator: true },
+      { label: 'Clear Chat History', action: 'clear-chat' },
+    ],
+    Tools: [
+      { label: 'MCP Servers', action: 'mcp-tools', icon: <Terminal className="w-4 h-4" /> },
+      { label: 'Settings', action: 'settings', shortcut: 'Ctrl+,', icon: <Settings className="w-4 h-4" /> },
+    ],
+    Help: [
+      { label: 'Getting Started', action: 'help-getting-started', icon: <HelpCircle className="w-4 h-4" /> },
+      { label: 'Keyboard Shortcuts', action: 'help-shortcuts' },
+      { label: 'Documentation', action: 'help-docs' },
+      { separator: true },
+      { label: 'About Butler', action: 'about' },
+    ],
+  };
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setActiveMenu(null);
+        setActiveSubmenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleMenuClick = (menuName: string) => {
+    if (activeMenu === menuName) {
+      setActiveMenu(null);
+      setActiveSubmenu(null);
+    } else {
+      setActiveMenu(menuName);
+      setActiveSubmenu(null);
+    }
+  };
+
+  const handleMenuItemClick = (item: MenuItem) => {
+    if (item.action) {
+      onAction(item.action);
+      setActiveMenu(null);
+      setActiveSubmenu(null);
+    }
+  };
+
+  const renderMenuItem = (item: MenuItem, isSubmenu = false) => {
+    if (item.separator) {
+      return <div key="separator" className="h-px bg-border my-1" />;
+    }
+
+    const hasSubmenu = item.submenu && item.submenu.length > 0;
+
+    return (
+      <button
+        key={item.label}
+        className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-700 transition-colors ${
+          isSubmenu ? 'pl-8' : ''
+        }`}
+        onClick={() => {
+          if (hasSubmenu) {
+            setActiveSubmenu(activeSubmenu === item.label ? null : item.label);
+          } else {
+            handleMenuItemClick(item);
+          }
+        }}
+        onMouseEnter={() => {
+          if (hasSubmenu) {
+            setActiveSubmenu(item.label);
+          }
+        }}
+      >
+        <div className="flex items-center gap-3">
+          {item.icon}
+          <span>{item.label}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {item.shortcut && (
+            <span className="text-xs text-text-muted">{item.shortcut}</span>
+          )}
+          {hasSubmenu && <ChevronDown className="w-4 h-4" />}
+        </div>
+      </button>
+    );
+  };
+
+  return (
+    <div ref={menuRef} className="h-8 bg-titlebar-bg border-b border-border flex items-center px-2 text-sm">
+      {Object.entries(menuItems).map(([menuName, items]) => (
+        <div key={menuName} className="relative">
+          <button
+            className={`px-3 py-1 rounded hover:bg-gray-700 transition-colors ${
+              activeMenu === menuName ? 'bg-gray-700' : ''
+            }`}
+            onClick={() => handleMenuClick(menuName)}
+            onMouseEnter={() => {
+              if (activeMenu && activeMenu !== menuName) {
+                setActiveMenu(menuName);
+                setActiveSubmenu(null);
+              }
+            }}
+          >
+            {menuName}
+          </button>
+          
+          {activeMenu === menuName && (
+            <div className="absolute top-full left-0 mt-1 w-64 bg-sidebar-bg border border-border rounded-md shadow-lg z-50 py-1">
+              {items.map((item) => (
+                <div key={item.label} className="relative">
+                  {renderMenuItem(item)}
+                  
+                  {item.submenu && activeSubmenu === item.label && (
+                    <div className="absolute top-0 left-full ml-1 w-56 bg-sidebar-bg border border-border rounded-md shadow-lg py-1">
+                      {item.submenu.map((subItem) => renderMenuItem(subItem, true))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      
+      {/* Split Layout Indicator */}
+      <div className="ml-auto flex items-center gap-2 px-3 py-1 text-xs text-text-muted">
+        <div className="w-3 h-3 border border-accent rounded-sm flex">
+          <div className="w-1/2 bg-accent opacity-60"></div>
+          <div className="w-1/2 bg-accent opacity-30"></div>
+        </div>
+        <span>50/50 Split</span>
+      </div>
+    </div>
+  );
+};
+
+export default MenuBar;
