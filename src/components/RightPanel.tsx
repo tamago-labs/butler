@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { 
   Bot, 
   Terminal,
-  Settings,
+  Settings as SettingsIcon,
   X
 } from 'lucide-react';
 import AIChat from './AIChat';
 import MCPPanel from './MCPPanel';
+import Settings from './Settings';
 import type { ChatMessage, MCPServer } from '../App';
 import type { FileTab } from '../hooks/useFileManager';
+import type { User } from '../hooks/useAuth';
 
 
 interface RightPanelProps {
@@ -18,7 +20,10 @@ interface RightPanelProps {
   mcpServers: MCPServer[];
   onMCPAction: (serverName: string, action: 'start' | 'stop') => void;
   isAuthenticated: boolean;
+  user: User | null;
   onShowAuth?: () => void;
+  onLogout?: () => void;
+  onRefreshCredits?: () => Promise<number | void>;
 }
 
 type RightPanelTab = 'ai' | 'mcp' | 'settings';
@@ -30,14 +35,17 @@ const RightPanel: React.FC<RightPanelProps> = ({
   mcpServers,
   onMCPAction,
   isAuthenticated,
-  onShowAuth
+  user,
+  onShowAuth,
+  onLogout,
+  onRefreshCredits
 }) => {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('ai');
 
   const tabs = [
     { id: 'ai' as const, icon: Bot, label: 'AI Assistant', count: chatHistory.length },
     { id: 'mcp' as const, icon: Terminal, label: 'MCP Tools', count: mcpServers.filter(s => s.status === 'running').length },
-    { id: 'settings' as const, icon: Settings, label: 'Settings' }
+    { id: 'settings' as const, icon: SettingsIcon, label: 'Settings' }
   ];
 
   const renderTabContent = () => {
@@ -63,37 +71,13 @@ const RightPanel: React.FC<RightPanelProps> = ({
         );
       case 'settings':
         return (
-          <div className="flex-1 p-4">
-            <h3 className="text-lg font-medium text-text-primary mb-4">Settings</h3>
-            <div className="space-y-4">
-              <div className="bg-gray-700 rounded p-4">
-                <h4 className="text-sm font-medium text-text-primary mb-2">Editor</h4>
-                <div className="space-y-2 text-sm text-text-muted">
-                  <div>Font Size: 14px</div>
-                  <div>Tab Size: 2 spaces</div>
-                  <div>Word Wrap: Enabled</div>
-                </div>
-              </div>
-              
-              <div className="bg-gray-700 rounded p-4">
-                <h4 className="text-sm font-medium text-text-primary mb-2">AI</h4>
-                <div className="space-y-2 text-sm text-text-muted">
-                  <div>Provider: Not configured</div>
-                  <div>Model: Not set</div>
-                  <div>Max Tokens: 4096</div>
-                </div>
-              </div>
-              
-              <div className="bg-gray-700 rounded p-4">
-                <h4 className="text-sm font-medium text-text-primary mb-2">About</h4>
-                <div className="space-y-2 text-sm text-text-muted">
-                  <div>Butler v0.1.0</div>
-                  <div>Tauri v2.0</div>
-                  <div>React v18.3</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Settings
+            user={user}
+            isAuthenticated={isAuthenticated}
+            onRefreshCredits={onRefreshCredits}
+            onShowAuth={onShowAuth}
+            onLogout={onLogout}
+          />
         );
       default:
         return null;

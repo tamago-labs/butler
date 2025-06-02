@@ -7,6 +7,21 @@ export interface User {
   avatar?: string;
   plan: 'free' | 'pro' | 'enterprise';
   aiCredits: number;
+  accessKey?: string;
+  organization?: string;
+}
+
+interface AccessKeyResponse {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+    organization?: string;
+  };
+  plan: 'free' | 'pro' | 'enterprise';
+  aiCredits: number;
+  accessKey: string;
 }
 
 export const useAuth = () => {
@@ -19,130 +34,110 @@ export const useAuth = () => {
     const checkExistingSession = () => {
       try {
         const storedUser = localStorage.getItem('butler_user');
-        if (storedUser) {
+        const storedAccessKey = localStorage.getItem('butler_access_key');
+        if (storedUser && storedAccessKey) {
           const userData = JSON.parse(storedUser);
-          setUser(userData);
+          setUser({ ...userData, accessKey: storedAccessKey });
           setIsAuthenticated(true);
         }
       } catch (error) {
         console.error('Error parsing stored user data:', error);
         localStorage.removeItem('butler_user');
+        localStorage.removeItem('butler_access_key');
       }
     };
 
     checkExistingSession();
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const authenticateWithAccessKey = useCallback(async (accessKey: string) => {
     setIsLoading(true);
     
     try {
-      // Simulate API call - replace with actual authentication
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock authentication check
-      if (email === 'demo@butler.ai' && password === 'demo123') {
-        const userData: User = {
-          id: 'user-demo',
-          name: 'Demo User',
-          email,
-          plan: 'pro',
-          aiCredits: 500
-        };
-        
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('butler_user', JSON.stringify(userData));
-      } else if (email.includes('@') && password.length >= 6) {
-        // Accept any valid email format with 6+ char password
-        const userData: User = {
-          id: 'user-' + Date.now(),
-          name: email.split('@')[0], // Use email prefix as name
-          email,
-          plan: 'free',
-          aiCredits: 100
-        };
-        
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('butler_user', JSON.stringify(userData));
-      } else {
-        throw new Error('Invalid credentials');
-      }
-      
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw new Error('Invalid email or password');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const register = useCallback(async (name: string, email: string, password: string) => {
-    setIsLoading(true);
-    
-    try {
-      // Simulate API call - replace with actual registration
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock registration validation
-      if (!name.trim()) {
-        throw new Error('Name is required');
-      }
-      if (!email.includes('@')) {
-        throw new Error('Valid email is required');
-      }
-      if (password.length < 6) {
-        throw new Error('Password must be at least 6 characters');
-      }
-      
-      // Create new user
-      const userData: User = {
-        id: 'user-' + Date.now(),
-        name: name.trim(),
-        email,
-        plan: 'free',
-        aiCredits: 100
-      };
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      localStorage.setItem('butler_user', JSON.stringify(userData));
-      
-    } catch (error) {
-      console.error('Registration failed:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const githubAuth = useCallback(async () => {
-    setIsLoading(true);
-    
-    try {
-      // Simulate GitHub OAuth - replace with actual OAuth flow
+      // Simulate API call to tamagolabs.com
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Mock GitHub user data
-      const userData: User = {
-        id: 'github-user-' + Date.now(),
-        name: 'GitHub Developer',
-        email: 'developer@github.com',
-        avatar: 'https://github.com/github.png',
-        plan: 'free',
-        aiCredits: 100
-      };
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      localStorage.setItem('butler_user', JSON.stringify(userData));
+      // Mock access key validation
+      if (accessKey === 'tamago-demo-key-123') {
+        const response: AccessKeyResponse = {
+          user: {
+            id: 'user-demo',
+            name: 'Demo User',
+            email: 'demo@tamagolabs.com',
+            avatar: 'https://github.com/github.png',
+            organization: 'Tamago Labs'
+          },
+          plan: 'pro',
+          aiCredits: 1000,
+          accessKey
+        };
+        
+        const userData: User = {
+          ...response.user,
+          plan: response.plan,
+          aiCredits: response.aiCredits,
+          accessKey: response.accessKey
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        localStorage.setItem('butler_user', JSON.stringify({
+          ...userData,
+          accessKey: undefined // Don't store access key in user object
+        }));
+        localStorage.setItem('butler_access_key', accessKey);
+      } else if (accessKey.startsWith('tamago-')) {
+        // Simulate different access key types
+        const isEnterprise = accessKey.includes('enterprise');
+        const isPro = accessKey.includes('pro');
+        
+        const response: AccessKeyResponse = {
+          user: {
+            id: 'user-' + Date.now(),
+            name: isPro || isEnterprise ? 'Pro User' : 'Free User',
+            email: `user@tamagolabs.com`,
+            organization: 'Tamago Labs'
+          },
+          plan: isEnterprise ? 'enterprise' : isPro ? 'pro' : 'free',
+          aiCredits: isEnterprise ? 5000 : isPro ? 1000 : 100,
+          accessKey
+        };
+        
+        const userData: User = {
+          ...response.user,
+          plan: response.plan,
+          aiCredits: response.aiCredits,
+          accessKey: response.accessKey
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        localStorage.setItem('butler_user', JSON.stringify({
+          ...userData,
+          accessKey: undefined
+        }));
+        localStorage.setItem('butler_access_key', accessKey);
+      } else {
+        throw new Error('Invalid access key');
+      }
       
     } catch (error) {
-      console.error('GitHub auth failed:', error);
-      throw new Error('GitHub authentication failed');
+      console.error('Access key authentication failed:', error);
+      throw new Error('Invalid access key. Please get a valid access key from tamagolabs.com');
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  const validateAccessKey = useCallback(async (accessKey: string): Promise<boolean> => {
+    try {
+      // Simulate API call to validate access key format
+      if (!accessKey.trim()) return false;
+      if (!accessKey.startsWith('tamago-')) return false;
+      if (accessKey.length < 16) return false;
+      return true;
+    } catch {
+      return false;
     }
   }, []);
 
@@ -150,15 +145,38 @@ export const useAuth = () => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('butler_user');
+    localStorage.removeItem('butler_access_key');
   }, []);
 
   const updateUser = useCallback((updates: Partial<User>) => {
     if (user) {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
-      localStorage.setItem('butler_user', JSON.stringify(updatedUser));
+      localStorage.setItem('butler_user', JSON.stringify({
+        ...updatedUser,
+        accessKey: undefined // Don't store access key in user object
+      }));
     }
   }, [user]);
+
+  const refreshCredits = useCallback(async () => {
+    if (!user?.accessKey) return;
+    
+    try {
+      // Simulate API call to refresh credits from tamagolabs.com
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock credit refresh based on plan
+      const newCredits = user.plan === 'enterprise' ? 5000 : 
+                        user.plan === 'pro' ? 1000 : 100;
+      
+      updateUser({ aiCredits: newCredits });
+      return newCredits;
+    } catch (error) {
+      console.error('Failed to refresh credits:', error);
+      throw error;
+    }
+  }, [user?.accessKey, user?.plan, updateUser]);
 
   const useAICredit = useCallback(() => {
     if (user && user.aiCredits > 0) {
@@ -203,41 +221,24 @@ export const useAuth = () => {
     isLoading,
     
     // Actions
-    login,
-    register,
-    githubAuth,
+    authenticateWithAccessKey,
+    validateAccessKey,
     logout,
     updateUser,
     useAICredit,
     addAICredits,
     upgradePlan,
+    refreshCredits,
     
     // Computed
     hasAIAccess
   };
 };
 
-// Mock user data for testing
-export const mockUsers = {
-  demo: {
-    email: 'demo@butler.ai',
-    password: 'demo123',
-    name: 'Demo User',
-    plan: 'pro' as const,
-    aiCredits: 500
-  },
-  free: {
-    email: 'user@example.com',
-    password: 'password123',
-    name: 'Free User',
-    plan: 'free' as const,
-    aiCredits: 100
-  },
-  pro: {
-    email: 'pro@example.com',
-    password: 'password123',
-    name: 'Pro User',
-    plan: 'pro' as const,
-    aiCredits: 1000
-  }
+// Mock access keys for testing
+export const mockAccessKeys = {
+  demo: 'tamago-demo-key-123',
+  free: 'tamago-free-key-456',
+  pro: 'tamago-pro-key-789',
+  enterprise: 'tamago-enterprise-key-abc'
 };

@@ -8,6 +8,7 @@ import StatusBar from './components/StatusBar';
 import MenuBar from './components/MenuBar';
 import WelcomePage from './components/WelcomePage';
 import AuthForm from './components/auth/AuthForm';
+import AccessKeyForm from './components/auth/AccessKeyForm';
 import { NotificationContainer, useNotifications } from './components/ui/Notifications';
 import { useFileManager } from './hooks/useFileManager';
 import { useAuth } from './hooks/useAuth';
@@ -36,7 +37,7 @@ function App() {
   const [showAuth, setShowAuth] = useState(false);
 
   // Authentication Hook
-  const { user, isAuthenticated, login, register, githubAuth, logout, hasAIAccess, useAICredit } = useAuth();
+  const { user, isAuthenticated, authenticateWithAccessKey, validateAccessKey, logout, hasAIAccess, useAICredit, refreshCredits } = useAuth();
 
   // Notifications Hook
   const { notifications, removeNotification, success, error, warning, info } = useNotifications();
@@ -227,43 +228,43 @@ function App() {
   }, [isRightPanelVisible, files.length]);
 
   // Authentication handlers
-  const handleLogin = useCallback(async (email: string, password: string) => {
+  const handleAuthenticate = useCallback(async (accessKey: string) => {
     try {
-      await login(email, password);
+      await authenticateWithAccessKey(accessKey);
       setShowAuth(false);
-      success('Welcome!', 'Successfully signed in to Butler.');
+      success('Welcome!', 'Successfully authenticated with Tamago Labs.');
     } catch (error) {
-      console.error('Login failed:', error);
-      // Error handling is done in the login function
+      console.error('Authentication failed:', error);
+      // Error handling is done in the authenticateWithAccessKey function
     }
-  }, [login, success]);
+  }, [authenticateWithAccessKey, success]);
 
-  const handleRegister = useCallback(async (name: string, email: string, password: string) => {
+  const handleValidateAccessKey = useCallback(async (accessKey: string) => {
     try {
-      await register(name, email, password);
-      setShowAuth(false);
-      success('Account Created!', 'Welcome to Butler! You can now use AI assistance.');
+      return await validateAccessKey(accessKey);
     } catch (error) {
-      console.error('Registration failed:', error);
-      // Error handling is done in the register function
+      console.error('Access key validation failed:', error);
+      return false;
     }
-  }, [register, success]);
-
-  const handleGithubAuth = useCallback(async () => {
-    try {
-      await githubAuth();
-      setShowAuth(false);
-      success('GitHub Connected!', 'Successfully signed in with GitHub.');
-    } catch (error) {
-      console.error('GitHub auth failed:', error);
-      // Error handling is done in the githubAuth function
-    }
-  }, [githubAuth, success]);
+  }, [validateAccessKey]);
 
   const handleLogout = useCallback(() => {
     logout();
     success('Signed Out', 'You have been successfully signed out of Butler.');
   }, [logout, success]);
+
+  const handleRefreshCredits = useCallback(async () => {
+    try {
+      const newCredits = await refreshCredits();
+      if (newCredits) {
+        success('Credits Refreshed', `Your AI credits have been refreshed to ${newCredits}.`);
+        return newCredits;
+      }
+    } catch (error) {
+      console.error('Failed to refresh credits:', error);
+      error('Refresh Failed', 'Could not refresh credits. Please try again later.');
+    }
+  }, [refreshCredits, success, error]);
 
   const toggleToolPalette = useCallback(() => {
     setIsToolPaletteOpen(prev => !prev);
@@ -465,10 +466,9 @@ function App() {
 
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-md">
-            <AuthForm
-              onLogin={handleLogin}
-              onRegister={handleRegister}
-              onGithubAuth={handleGithubAuth}
+            <AccessKeyForm
+              onAuthenticate={handleAuthenticate}
+              onValidateKey={handleValidateAccessKey}
             />
 
             <div className="mt-6 text-center">
@@ -579,7 +579,10 @@ function App() {
                   mcpServers={mcpServers}
                   onMCPAction={handleMCPAction}
                   isAuthenticated={isAuthenticated}
+                  user={user}
                   onShowAuth={() => setShowAuth(true)}
+                  onLogout={handleLogout}
+                  onRefreshCredits={handleRefreshCredits}
                 />
               )}
             </>

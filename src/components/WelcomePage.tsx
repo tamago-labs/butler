@@ -159,8 +159,8 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
                 Your AI-Powered Code Editor
               </h2>
               <p className="text-lg text-text-muted max-w-2xl mx-auto">
-                Butler combines the best of modern code editing with powerful AI assistance, 
-                helping you write better code faster than ever before.
+                Butler combines the best of modern code editing with powerful AI assistance. 
+                Get your access key from Tamago Labs to unlock AI-powered coding features.
               </p>
               <button
                 onClick={onShowAuth}
