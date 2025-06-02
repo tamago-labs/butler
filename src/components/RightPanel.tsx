@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import AIChat from './AIChat';
 import MCPPanel from './MCPPanel';
-import type { ChatMessage, FileTab, MCPServer } from '../App';
+import type { ChatMessage, MCPServer } from '../App';
+import type { FileTab } from '../hooks/useFileManager';
+
 
 interface RightPanelProps {
   chatHistory: ChatMessage[];
@@ -15,6 +17,8 @@ interface RightPanelProps {
   currentFile: FileTab;
   mcpServers: MCPServer[];
   onMCPAction: (serverName: string, action: 'start' | 'stop') => void;
+  isAuthenticated: boolean;
+  onShowAuth?: () => void;
 }
 
 type RightPanelTab = 'ai' | 'mcp' | 'settings';
@@ -24,7 +28,9 @@ const RightPanel: React.FC<RightPanelProps> = ({
   onSendMessage,
   currentFile,
   mcpServers,
-  onMCPAction
+  onMCPAction,
+  isAuthenticated,
+  onShowAuth
 }) => {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('ai');
 
@@ -42,6 +48,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
             chatHistory={chatHistory}
             onSendMessage={onSendMessage}
             currentFile={currentFile}
+            isAuthenticated={isAuthenticated}
+            onShowAuth={onShowAuth}
           />
         );
       case 'mcp':
@@ -49,6 +57,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
           <MCPPanel
             mcpServers={mcpServers}
             onMCPAction={onMCPAction}
+            isAuthenticated={isAuthenticated}
+            onShowAuth={onShowAuth}
           />
         );
       case 'settings':

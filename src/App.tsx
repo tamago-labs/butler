@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import  { useState, useCallback, useEffect } from 'react';
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
@@ -12,6 +12,7 @@ import { NotificationContainer, useNotifications } from './components/ui/Notific
 import { useFileManager } from './hooks/useFileManager';
 import { useAuth } from './hooks/useAuth';
 import type { FileTab } from './hooks/useFileManager';
+
 
 export interface MCPServer {
   name: string;
@@ -32,7 +33,7 @@ function App() {
   const [showAuth, setShowAuth] = useState(false);
 
   // Authentication Hook
-  const { user, isAuthenticated, login, register, githubAuth, hasAIAccess, useAICredit } = useAuth();
+  const { user, isAuthenticated, login, register, githubAuth, logout, hasAIAccess, useAICredit } = useAuth();
 
   // Notifications Hook
   const { notifications, removeNotification, success, error, warning, info } = useNotifications();
@@ -75,12 +76,12 @@ function App() {
       id: 'welcome',
       sender: 'assistant',
       content: isAuthenticated 
-        ? `Welcome back, ${user?.name}! I'm ready to help you with your coding projects. Open a folder or create a file to get started.`
-        : 'Welcome to Butler! Please sign in to unlock AI assistance and start coding with intelligent help.',
+        ? `Welcome back, ${user?.name}! I'm ready to help you with your coding projects. You have ${user?.aiCredits} AI credits available.`
+        : 'Welcome to Butler! You can start coding right away. For AI assistance, sign in to get 100 free credits and unlock intelligent code help.',
       timestamp: new Date()
     };
     setChatHistory([welcomeMessage]);
-  }, [isAuthenticated, user?.name]);
+  }, [isAuthenticated, user?.name, user?.aiCredits]);
 
   // Mock MCP servers for UI demonstration
   const [mcpServers] = useState<MCPServer[]>([
@@ -105,8 +106,8 @@ function App() {
       if (file) {
         success('File Opened', `Successfully opened ${file.name}`);
       }
-    } catch (error) {
-      console.error('Failed to open file:', error);
+    } catch (err) {
+      console.error('Failed to open file:', err);
       error('Failed to Open File', 'Could not open the selected file. Please check if the file exists and you have permission to access it.');
     }
   }, [openFile, success, error]);
@@ -117,8 +118,8 @@ function App() {
       if (folderPath) {
         success('Folder Opened', `Successfully opened ${folderPath.split(/[/\\]/).pop()}`);
       }
-    } catch (error) {
-      console.error('Failed to open folder:', error);
+    } catch (err) {
+      console.error('Failed to open folder:', err);
       error('Failed to Open Folder', 'Could not open the selected folder. Please check if the folder exists and you have permission to access it.');
     }
   }, [openFolder, success, error]);
@@ -131,8 +132,8 @@ function App() {
       if (saved) {
         success('File Saved', `Successfully saved ${currentFile.name}`);
       }
-    } catch (error) {
-      console.error('Failed to save file:', error);
+    } catch (err) {
+      console.error('Failed to save file:', err);
       error('Failed to Save File', 'Could not save the file. Please check if you have write permissions to the directory.');
     }
   }, [activeFileId, saveFile, success, error, currentFile.name]);
@@ -144,8 +145,16 @@ function App() {
   const handleSendMessage = useCallback(async (message: string) => {
     // Check if user has AI access
     if (!hasAIAccess()) {
-      error('AI Access Required', 'Please sign in or upgrade your plan to use AI assistance.');
-      setShowAuth(true);
+      const authPromptMessage: ChatMessage = {
+        id: `auth-prompt-${Date.now()}`,
+        sender: 'assistant',
+        content: 'I\'d love to help you with that! To use AI assistance, please sign in to your Butler account. You\'ll get 100 free AI credits to get started.',
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, authPromptMessage]);
+      
+      // Show a gentle notification instead of blocking
+      info('AI Features Available', 'Sign in to unlock AI assistance with 100 free credits!');
       return;
     }
 
@@ -191,7 +200,7 @@ function App() {
       };
       setChatHistory(prev => [...prev, aiMessage]);
     }, 1000);
-  }, [currentFile, hasAIAccess, useAICredit, error, warning]);
+  }, [currentFile, hasAIAccess, useAICredit, info, warning]);
 
   const handleMCPAction = useCallback((serverName: string, action: 'start' | 'stop') => {
     console.log(`${action} MCP server: ${serverName} (mock)`);
@@ -231,6 +240,11 @@ function App() {
       // Error handling is done in the githubAuth function
     }
   }, [githubAuth, success]);
+
+  const handleLogout = useCallback(() => {
+    logout();
+    success('Signed Out', 'You have been successfully signed out of Butler.');
+  }, [logout, success]);
 
   const toggleToolPalette = useCallback(() => {
     setIsToolPaletteOpen(prev => !prev);
@@ -346,13 +360,19 @@ function App() {
   // Calculate the main content area width (excluding sidebar)
   const mainContentWidth = `calc(100% - ${sidebarWidth}px)`;
   const hasOpenFiles = files.length > 0;
-  const showWelcomePage = !hasOpenFiles && !showAuth;
+  const showWelcomePage = !hasOpenFiles && !showAuth; // Show welcome for both auth states
 
   // Auth modal overlay
   if (showAuth) {
     return (
       <div className="h-screen bg-editor-bg text-text-primary flex flex-col overflow-hidden">
-        <TitleBar currentFileName="Authentication" />
+        <TitleBar 
+          currentFileName="Authentication" 
+          user={user}
+          isAuthenticated={isAuthenticated}
+          onLogout={handleLogout}
+          onShowAuth={() => setShowAuth(true)}
+        />
         
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-md">
@@ -383,7 +403,13 @@ function App() {
 
   return (
     <div className="h-screen bg-editor-bg text-text-primary flex flex-col overflow-hidden">
-      <TitleBar currentFileName={currentFile.name} />
+      <TitleBar 
+        currentFileName={currentFile.name} 
+        user={user}
+        isAuthenticated={isAuthenticated}
+        onLogout={handleLogout}
+        onShowAuth={() => setShowAuth(true)}
+      />
       
       {isMenuBarVisible && (
         <MenuBar onAction={handleMenuAction} />
@@ -463,6 +489,8 @@ function App() {
                 currentFile={currentFile}
                 mcpServers={mcpServers}
                 onMCPAction={handleMCPAction}
+                isAuthenticated={isAuthenticated}
+                onShowAuth={() => setShowAuth(true)}
               />
             </>
           )}

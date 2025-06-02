@@ -21,6 +21,8 @@ import type { MCPServer } from '../App';
 interface MCPPanelProps {
   mcpServers: MCPServer[];
   onMCPAction: (serverName: string, action: 'start' | 'stop') => void;
+  isAuthenticated?: boolean;
+  onShowAuth?: () => void;
 }
 
 interface MCPServerTemplate {
@@ -33,7 +35,9 @@ interface MCPServerTemplate {
 
 const MCPPanel: React.FC<MCPPanelProps> = ({
   mcpServers,
-  onMCPAction
+  onMCPAction,
+  isAuthenticated = false,
+  onShowAuth
 }) => {
   const [activeSection, setActiveSection] = useState<'servers' | 'templates' | 'logs'>('servers');
   const [isAddingServer, setIsAddingServer] = useState(false);

@@ -11,18 +11,23 @@ import {
   Copy,
   RefreshCw
 } from 'lucide-react';
-import type { ChatMessage, FileTab } from '../App';
+import type { ChatMessage } from '../App'; 
+import type { FileTab } from '../hooks/useFileManager';
 
 interface AIChatProps {
   chatHistory: ChatMessage[];
   onSendMessage: (message: string) => Promise<void>;
   currentFile: FileTab;
+  isAuthenticated: boolean;
+  onShowAuth?: () => void;
 }
 
 const AIChat: React.FC<AIChatProps> = ({
   chatHistory,
   onSendMessage,
-  currentFile
+  currentFile,
+  isAuthenticated,
+  onShowAuth
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -225,37 +230,57 @@ const AIChat: React.FC<AIChatProps> = ({
 
       {/* Input Area */}
       <div className="flex-shrink-0 border-t border-border p-3">
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Ask me anything about your code..."
-              className="w-full bg-gray-700 border border-border rounded px-3 py-2 resize-none text-text-primary focus:outline-none focus:border-accent transition-colors"
-              style={{ minHeight: '40px' }}
-              disabled={isLoading}
-              rows={1}
-            />
+        {!isAuthenticated ? (
+          <div className="text-center space-y-3">
+            <div className="p-4 bg-gray-800 rounded-lg border border-accent/20">
+              <Bot className="w-8 h-8 mx-auto mb-2 text-accent" />
+              <h4 className="font-medium text-text-primary mb-1">AI Assistant Available</h4>
+              <p className="text-sm text-text-muted mb-3">
+                Sign in to unlock AI-powered code assistance with 100 free credits
+              </p>
+              <button
+                onClick={onShowAuth}
+                className="w-full bg-accent hover:bg-accent-hover text-white py-2 px-4 rounded font-medium transition-colors"
+              >
+                Sign In for AI Help
+              </button>
+            </div>
           </div>
-          
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="px-3 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-        
-        <div className="text-xs text-text-muted mt-2">
-          Press Enter to send, Shift+Enter for new line
-        </div>
+        ) : (
+          <>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Ask me anything about your code..."
+                  className="w-full bg-gray-700 border border-border rounded px-3 py-2 resize-none text-text-primary focus:outline-none focus:border-accent transition-colors"
+                  style={{ minHeight: '40px' }}
+                  disabled={isLoading}
+                  rows={1}
+                />
+              </div>
+              
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                className="px-3 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            
+            <div className="text-xs text-text-muted mt-2">
+              Press Enter to send, Shift+Enter for new line
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
