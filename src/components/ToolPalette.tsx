@@ -17,7 +17,7 @@ import {
 
 interface ToolPaletteProps {
   onClose: () => void;
-  onCommand: (command: string) => void;
+  onCommand: (command: string) => Promise<void> | void;
 }
 
 interface Command {

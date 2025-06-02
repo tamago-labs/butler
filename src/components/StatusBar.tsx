@@ -13,7 +13,7 @@ interface StatusBarProps {
   column: number;
   aiStatus: string;
   isRightPanelVisible: boolean;
-  onToggleRightPanel: () => void;
+  onToggleRightPanel: () => Promise<void> | void;
 }
 
 const StatusBar: React.FC<StatusBarProps> = ({

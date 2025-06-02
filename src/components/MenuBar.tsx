@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 interface MenuBarProps {
-  onAction: (action: string) => void;
+  onAction: (action: string) => Promise<void> | void;
   isRightPanelVisible: boolean;
 }
 
@@ -113,9 +113,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction, isRightPanelVisible }) => {
     }
   };
 
-  const handleMenuItemClick = (item: MenuItem) => {
+  const handleMenuItemClick = async (item: MenuItem) => {
     if (item.action) {
-      onAction(item.action);
+      await onAction(item.action);
       setActiveMenu(null);
       setActiveSubmenu(null);
     }

@@ -1,20 +1,17 @@
 import React from 'react';
 import { 
   FolderOpen, 
-  Brain, 
-  Terminal, 
-  Zap, 
-  Shield, 
-  Code, 
   FileText,
   GitBranch,
-  Search,
   Settings,
   ArrowRight,
-  Star,
-  Users,
-  Download,
-  ConciergeBell
+  ConciergeBell,
+  Keyboard,
+  Command,
+  Save,
+  Search,
+  Terminal,
+  ToggleRight
 } from 'lucide-react';
 
 interface WelcomePageProps {
@@ -30,32 +27,75 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
   isAuthenticated, 
   userName 
 }) => {
-  const features = [
+  const shortcuts = [
     {
-      icon: <Brain className="w-6 h-6 text-blue-400" />,
-      title: 'AI-Powered Coding',
-      description: 'Get intelligent code suggestions, explanations, and debugging help from advanced AI models.',
-      action: 'Start Coding with AI'
+      icon: <Command className="w-5 h-5 text-blue-400" />,
+      keys: ['Ctrl', 'N'],
+      description: 'Create new file',
+      category: 'File'
     },
     {
-      icon: <Terminal className="w-6 h-6 text-green-400" />,
-      title: 'MCP Tools Integration',
-      description: 'Connect external tools and databases through the Model Context Protocol for enhanced capabilities.',
-      action: 'Explore MCP Tools'
+      icon: <FolderOpen className="w-5 h-5 text-blue-400" />,
+      keys: ['Ctrl', 'O'],
+      description: 'Open file',
+      category: 'File'
     },
     {
-      icon: <Zap className="w-6 h-6 text-yellow-400" />,
-      title: 'Lightning Fast',
-      description: 'Built with Tauri for native performance while maintaining web technology flexibility.',
-      action: 'Experience Speed'
+      icon: <FolderOpen className="w-5 h-5 text-blue-400" />,
+      keys: ['Ctrl', 'Shift', 'O'],
+      description: 'Open folder',
+      category: 'File'
     },
     {
-      icon: <Shield className="w-6 h-6 text-purple-400" />,
-      title: 'Privacy First',
-      description: 'Your code stays secure with local processing and encrypted cloud sync when needed.',
-      action: 'Learn About Security'
+      icon: <Save className="w-5 h-5 text-green-400" />,
+      keys: ['Ctrl', 'S'],
+      description: 'Save file',
+      category: 'File'
+    },
+    {
+      icon: <Command className="w-5 h-5 text-purple-400" />,
+      keys: ['Ctrl', 'Shift', 'P'],
+      description: 'Command palette',
+      category: 'Navigation'
+    },
+    {
+      icon: <Search className="w-5 h-5 text-yellow-400" />,
+      keys: ['Ctrl', 'F'],
+      description: 'Find in file',
+      category: 'Search'
+    },
+    {
+      icon: <ToggleRight className="w-5 h-5 text-green-400" />,
+      keys: ['Ctrl', 'J'],
+      description: 'Toggle AI panel',
+      category: 'Panels'
+    },
+    {
+      icon: <Keyboard className="w-5 h-5 text-gray-400" />,
+      keys: ['Ctrl', 'B'],
+      description: 'Toggle menu bar',
+      category: 'Panels'
+    },
+    {
+      icon: <Terminal className="w-5 h-5 text-orange-400" />,
+      keys: ['Ctrl', 'W'],
+      description: 'Close file',
+      category: 'File'
+    },
+    {
+      icon: <Command className="w-5 h-5 text-red-400" />,
+      keys: ['Esc'],
+      description: 'Close command palette',
+      category: 'Navigation'
     }
   ];
+
+  const shortcutCategories = {
+    'File': shortcuts.filter(s => s.category === 'File'),
+    'Navigation': shortcuts.filter(s => s.category === 'Navigation'),
+    'Search': shortcuts.filter(s => s.category === 'Search'),
+    'Panels': shortcuts.filter(s => s.category === 'Panels')
+  };
 
   const quickActions = [
     {
@@ -199,56 +239,52 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
           </>
         )}
 
-        {/* Features Section */}
+        {/* Keyboard Shortcuts Section */}
         <div className="space-y-6">
-          <h3 className="text-xl font-semibold text-text-primary text-center">
-            Why Choose Butler?
-          </h3>
+          <div className="text-center">
+            <h3 className="text-xl font-semibold text-text-primary mb-2">
+              Keyboard Shortcuts
+            </h3>
+            <p className="text-text-muted">
+              Master Butler with these essential shortcuts
+            </p>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="p-6 bg-sidebar-bg rounded-xl border border-border hover:border-accent transition-all group"
-              >
-                <div className="mb-4">{feature.icon}</div>
-                <h4 className="text-lg font-semibold text-text-primary mb-2 group-hover:text-accent transition-colors">
-                  {feature.title}
+            {Object.entries(shortcutCategories).map(([category, shortcuts]) => (
+              <div key={category} className="bg-sidebar-bg rounded-xl border border-border p-6">
+                <h4 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+                  <Keyboard className="w-5 h-5 text-accent" />
+                  {category}
                 </h4>
-                <p className="text-text-muted mb-4">{feature.description}</p>
-                <button className="text-accent hover:text-accent-hover text-sm font-medium flex items-center gap-1 group-hover:gap-2 transition-all">
-                  {feature.action} <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="space-y-3">
+                  {shortcuts.map((shortcut, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {shortcut.icon}
+                        <span className="text-text-primary text-sm">{shortcut.description}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {shortcut.keys.map((key, keyIndex) => (
+                          <React.Fragment key={keyIndex}>
+                            <kbd className="px-2 py-1 text-xs font-mono bg-gray-700 text-text-muted rounded border border-gray-600">
+                              {key}
+                            </kbd>
+                            {keyIndex < shortcut.keys.length - 1 && (
+                              <span className="text-text-muted text-xs">+</span>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Stats Section */}
-        <div className="bg-gradient-to-r from-accent to-blue-600 rounded-xl p-8 text-white">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            <div>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Users className="w-6 h-6" />
-                <span className="text-2xl font-bold">10K+</span>
-              </div>
-              <p className="opacity-90">Developers</p>
-            </div>
-            <div>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Code className="w-6 h-6" />
-                <span className="text-2xl font-bold">1M+</span>
-              </div>
-              <p className="opacity-90">Lines of Code</p>
-            </div>
-            <div>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Star className="w-6 h-6" />
-                <span className="text-2xl font-bold">4.9/5</span>
-              </div>
-              <p className="opacity-90">User Rating</p>
-            </div>
-          </div>
-        </div>
+
 
         {/* Footer */}
         <div className="text-center space-y-4 pt-8 border-t border-border">

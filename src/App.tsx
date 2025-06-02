@@ -12,6 +12,7 @@ import { NotificationContainer, useNotifications } from './components/ui/Notific
 import { useFileManager } from './hooks/useFileManager';
 import { useAuth } from './hooks/useAuth';
 import { exit } from '@tauri-apps/plugin-process';
+import { message } from '@tauri-apps/plugin-dialog';
 // import type { FileTab } from './hooks/useFileManager';
 
 
@@ -212,9 +213,18 @@ function App() {
   }, []);
 
   // NEW: Toggle right panel for more editor space
-  const toggleRightPanel = useCallback(() => {
+  const toggleRightPanel = useCallback(async () => {
+    // Check if no files are open and trying to show the AI panel
+    if (!isRightPanelVisible && files.length === 0) {
+      await message('To use the AI assistant, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
+        title: 'AI Assistant',
+        kind: 'info'
+      });
+      return;
+    }
+    
     setIsRightPanelVisible(prev => !prev);
-  }, []);
+  }, [isRightPanelVisible, files.length]);
 
   // Authentication handlers
   const handleLogin = useCallback(async (email: string, password: string) => {
@@ -263,7 +273,7 @@ function App() {
     await exit(0)
   },[])
 
-  const handleMenuAction = useCallback((action: string) => {
+  const handleMenuAction = useCallback(async (action: string) => {
     switch (action) {
       case 'new-file':
         handleNewFile();
@@ -281,10 +291,19 @@ function App() {
         setIsMenuBarVisible(prev => !prev);
         break;
       case 'toggle-right-panel': // NEW: Menu action for toggling right panel
-        toggleRightPanel();
+        await toggleRightPanel();
         break;
       case 'analyze-code':
-        if (!isRightPanelVisible) setIsRightPanelVisible(true); // Show panel when using AI
+        if (!isRightPanelVisible) {
+          if (files.length === 0) {
+            await message('To use AI code analysis, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
+              title: 'AI Code Analysis',
+              kind: 'info'
+            });
+            return;
+          }
+          setIsRightPanelVisible(true);
+        }
         handleSendMessage(`Please analyze my ${currentFile.language} code`);
         break;
       case 'command-palette':
@@ -294,9 +313,9 @@ function App() {
         handleExit();
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel, files.length]);
 
-  const handleToolCommand = useCallback((command: string) => {
+  const handleToolCommand = useCallback(async (command: string) => {
     switch (command) {
       case 'New File':
         handleNewFile();
@@ -308,22 +327,58 @@ function App() {
         handleSaveFile();
         break;
       case 'Toggle Right Panel':
-        toggleRightPanel();
+        await toggleRightPanel();
         break;
       case 'Analyze Code':
-        if (!isRightPanelVisible) setIsRightPanelVisible(true); // Show panel when using AI
+        if (!isRightPanelVisible) {
+          if (files.length === 0) {
+            await message('To use AI code analysis, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
+              title: 'AI Code Analysis',
+              kind: 'info'
+            });
+            return;
+          }
+          setIsRightPanelVisible(true);
+        }
         handleSendMessage(`Please analyze my ${currentFile.language} code`);
         break;
       case 'Find Issues':
-        if (!isRightPanelVisible) setIsRightPanelVisible(true);
+        if (!isRightPanelVisible) {
+          if (files.length === 0) {
+            await message('To use AI code review, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
+              title: 'AI Code Review',
+              kind: 'info'
+            });
+            return;
+          }
+          setIsRightPanelVisible(true);
+        }
         handleSendMessage(`Review my ${currentFile.language} code for potential bugs and issues`);
         break;
       case 'Explain Code':
-        if (!isRightPanelVisible) setIsRightPanelVisible(true);
+        if (!isRightPanelVisible) {
+          if (files.length === 0) {
+            await message('To use AI code explanation, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
+              title: 'AI Code Explanation',
+              kind: 'info'
+            });
+            return;
+          }
+          setIsRightPanelVisible(true);
+        }
         handleSendMessage(`Explain what this ${currentFile.language} code does and how it works`);
         break;
       case 'Optimize Code':
-        if (!isRightPanelVisible) setIsRightPanelVisible(true);
+        if (!isRightPanelVisible) {
+          if (files.length === 0) {
+            await message('To use AI code optimization, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
+              title: 'AI Code Optimization',
+              kind: 'info'
+            });
+            return;
+          }
+          setIsRightPanelVisible(true);
+        }
         handleSendMessage(`How can I optimize this ${currentFile.language} code for better performance?`);
         break;
       case 'MCP Tools':
@@ -336,7 +391,7 @@ function App() {
         // Removed from sidebar
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel, files.length]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -406,8 +461,6 @@ function App() {
           isAuthenticated={isAuthenticated}
           onLogout={handleLogout}
           onShowAuth={() => setShowAuth(true)}
-          isRightPanelVisible={isRightPanelVisible}
-          onToggleRightPanel={toggleRightPanel}
         />
 
         <div className="flex-1 flex items-center justify-center p-8">
