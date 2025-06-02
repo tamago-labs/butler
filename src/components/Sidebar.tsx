@@ -1,30 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FolderOpen, 
-  Search, 
-  GitBranch, 
-  Terminal, 
-  Play, 
-  Square, 
-  AlertCircle,
-  CheckCircle,
+  FolderPlus,
+  FileText,
+  RefreshCw,
+  Loader2,
   Folder,
   File,
   ChevronRight,
   ChevronDown,
-  FolderPlus,
-  FileText,
-  RefreshCw,
-  Loader2
+  FolderOpen,
+  Search,
+  X
 } from 'lucide-react';
-import type { MCPServer } from '../App';
 import type { FileNode } from '../hooks/useFileManager';
 
 interface SidebarProps {
-  activePanel: 'explorer' | 'search' | 'git' | 'mcp';
-  onPanelChange: (panel: 'explorer' | 'search' | 'git' | 'mcp') => void;
-  mcpServers: MCPServer[];
-  onMCPAction: (serverName: string, action: 'start' | 'stop') => void;
   width: number;
   fileTree: FileNode[];
   workspaceRoot: string | null;
@@ -37,10 +27,6 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  activePanel,
-  onPanelChange,
-  mcpServers,
-  onMCPAction,
   width,
   fileTree,
   workspaceRoot,
@@ -53,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FileNode[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
 
   // Search functionality
   useEffect(() => {
@@ -147,12 +134,49 @@ const Sidebar: React.FC<SidebarProps> = ({
     );
   };
 
-  const renderExplorer = () => (
-    <div className="flex-1 overflow-y-auto">
-      <div className="p-3">
+  const renderSearchResults = () => (
+    <div className="mt-4 space-y-1">
+      {searchQuery && searchResults.length === 0 && (
+        <div className="text-xs text-text-muted py-4 text-center">
+          No files found for "{searchQuery}"
+        </div>
+      )}
+      
+      {searchResults.map(result => (
+        <div
+          key={result.path}
+          className="flex items-center gap-2 py-1 px-2 hover:bg-gray-700 cursor-pointer text-sm rounded"
+          onClick={() => !result.isDirectory && onOpenFile(result.path)}
+        >
+          {getFileIcon(result.name, result.isDirectory)}
+          <span className="truncate flex-1">{result.name}</span>
+          <span className="text-xs text-text-muted truncate max-w-24" title={result.path}>
+            {result.path.split(/[/\\]/).slice(-2, -1)[0]}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div 
+      className="bg-sidebar-bg border-r border-border flex flex-col"
+      style={{ width: `${width}px` }}
+    >
+      {/* Header */}
+      <div className="flex-shrink-0 p-3 border-b border-border">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-text-primary">Explorer</h3>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowSearch(!showSearch)}
+              className={`p-1 rounded transition-colors ${
+                showSearch ? 'bg-accent text-white' : 'hover:bg-gray-700 text-text-muted'
+              }`}
+              title="Search Files"
+            >
+              <Search className="w-4 h-4" />
+            </button>
             <button
               onClick={onCreateFile}
               className="p-1 hover:bg-gray-700 rounded transition-colors"
@@ -184,192 +208,65 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {workspaceRoot ? (
-          <div className="space-y-1">
-            <div className="text-xs text-text-muted mb-2 truncate" title={workspaceRoot}>
-              {workspaceRoot.split(/[/\\]/).pop()}
-            </div>
-            {fileTree.map(node => renderFileNode(node))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <FolderOpen className="w-8 h-8 mx-auto mb-3 text-text-muted" />
-            <p className="text-sm text-text-muted mb-3">No folder opened</p>
+        {/* Search Bar */}
+        {showSearch && (
+          <div className="relative mb-3">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search files..."
+              className="w-full bg-gray-700 border border-border rounded px-3 py-2 pr-8 text-sm text-text-primary focus:outline-none focus:border-accent"
+              autoFocus
+            />
             <button
-              onClick={onOpenFolder}
-              className="px-3 py-2 bg-accent text-white rounded hover:bg-accent-hover transition-colors text-sm"
+              onClick={() => {
+                setShowSearch(false);
+                setSearchQuery('');
+              }}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-text-muted hover:text-text-primary"
             >
-              Open Folder
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
-      </div>
-    </div>
-  );
 
-  const renderSearch = () => (
-    <div className="flex-1 overflow-y-auto">
-      <div className="p-3">
-        <h3 className="text-sm font-medium text-text-primary mb-3">Search</h3>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search files..."
-          className="w-full bg-gray-700 border border-border rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-        />
-        
-        <div className="mt-4 space-y-1">
-          {searchQuery && searchResults.length === 0 && (
-            <div className="text-xs text-text-muted py-4 text-center">
-              No files found for "{searchQuery}"
-            </div>
-          )}
-          
-          {searchResults.map(result => (
-            <div
-              key={result.path}
-              className="flex items-center gap-2 py-1 px-2 hover:bg-gray-700 cursor-pointer text-sm rounded"
-              onClick={() => !result.isDirectory && onOpenFile(result.path)}
-            >
-              {getFileIcon(result.name, result.isDirectory)}
-              <span className="truncate flex-1">{result.name}</span>
-              <span className="text-xs text-text-muted truncate max-w-24" title={result.path}>
-                {result.path.split(/[/\\]/).slice(-2, -1)[0]}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderGit = () => (
-    <div className="flex-1 overflow-y-auto">
-      <div className="p-3">
-        <h3 className="text-sm font-medium text-text-primary mb-3">Source Control</h3>
-        <div className="space-y-3">
-          <div className="bg-gray-700 rounded p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <GitBranch className="w-4 h-4 text-accent" />
-              <span className="text-sm font-medium">main</span>
-            </div>
-            <div className="text-xs text-text-muted">
-              {workspaceRoot ? 'Repository detected' : 'No repository'}
-            </div>
+        {/* Workspace Root Info */}
+        {workspaceRoot && (
+          <div className="text-xs text-text-muted mb-2 truncate" title={workspaceRoot}>
+            📁 {workspaceRoot.split(/[/\\]/).pop()}
           </div>
-          
-          <div className="space-y-2">
-            <div className="text-xs font-medium text-text-muted">Recent commits:</div>
-            <div className="space-y-1">
-              <div className="text-xs p-2 bg-gray-700 rounded">
-                <div className="text-text-primary">Add file management</div>
-                <div className="text-text-muted">2 hours ago</div>
-              </div>
-              <div className="text-xs p-2 bg-gray-700 rounded">
-                <div className="text-text-primary">Update editor components</div>
-                <div className="text-text-muted">1 day ago</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
-    </div>
-  );
 
-  const renderMCP = () => (
-    <div className="flex-1 overflow-y-auto">
-      <div className="p-3">
-        <h3 className="text-sm font-medium text-text-primary mb-3">MCP Servers</h3>
-        <div className="space-y-2">
-          {mcpServers.map((server) => (
-            <div
-              key={server.name}
-              className="flex items-center justify-between p-3 bg-gray-700 rounded"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  {server.status === 'running' && (
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                  )}
-                  {server.status === 'stopped' && (
-                    <Square className="w-4 h-4 text-gray-400" />
-                  )}
-                  {server.status === 'error' && (
-                    <AlertCircle className="w-4 h-4 text-red-400" />
-                  )}
-                  <span className="text-sm font-medium capitalize">
-                    {server.name}
-                  </span>
-                </div>
+      {/* File Tree / Search Results */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-3">
+          {workspaceRoot ? (
+            showSearch && searchQuery ? (
+              renderSearchResults()
+            ) : (
+              <div className="space-y-1">
+                {fileTree.map(node => renderFileNode(node))}
               </div>
-              
+            )
+          ) : (
+            <div className="text-center py-8">
+              <FolderOpen className="w-8 h-8 mx-auto mb-3 text-text-muted" />
+              <p className="text-sm text-text-muted mb-3">No folder opened</p>
+              <p className="text-xs text-text-muted mb-4">
+                Open a folder to start browsing your project files
+              </p>
               <button
-                onClick={() =>
-                  onMCPAction(
-                    server.name,
-                    server.status === 'running' ? 'stop' : 'start'
-                  )
-                }
-                className={`p-1 rounded transition-colors ${
-                  server.status === 'running'
-                    ? 'hover:bg-red-600 text-red-400'
-                    : 'hover:bg-green-600 text-green-400'
-                }`}
-                title={
-                  server.status === 'running'
-                    ? `Stop ${server.name}`
-                    : `Start ${server.name}`
-                }
+                onClick={onOpenFolder}
+                className="px-3 py-2 bg-accent text-white rounded hover:bg-accent-hover transition-colors text-sm"
               >
-                {server.status === 'running' ? (
-                  <Square className="w-4 h-4" />
-                ) : (
-                  <Play className="w-4 h-4" />
-                )}
+                Open Folder
               </button>
             </div>
-          ))}
+          )}
         </div>
       </div>
-    </div>
-  );
-
-  const panels = [
-    { id: 'explorer' as const, icon: FolderOpen, label: 'Explorer' },
-    { id: 'search' as const, icon: Search, label: 'Search' },
-    { id: 'git' as const, icon: GitBranch, label: 'Source Control' },
-    { id: 'mcp' as const, icon: Terminal, label: 'MCP Servers' },
-  ];
-
-  return (
-    <div 
-      className="bg-sidebar-bg border-r border-border flex flex-col"
-      style={{ width: `${width}px` }}
-    >
-      {/* Panel Tabs */}
-      <div className="flex border-b border-border">
-        {panels.map((panel) => (
-          <button
-            key={panel.id}
-            onClick={() => onPanelChange(panel.id)}
-            className={`flex-1 flex items-center justify-center p-3 transition-colors ${
-              activePanel === panel.id
-                ? 'bg-editor-bg text-accent border-b-2 border-accent'
-                : 'text-text-muted hover:text-text-primary hover:bg-gray-700'
-            }`}
-            title={panel.label}
-          >
-            <panel.icon className="w-4 h-4" />
-          </button>
-        ))}
-      </div>
-
-      {/* Panel Content */}
-      {activePanel === 'explorer' && renderExplorer()}
-      {activePanel === 'search' && renderSearch()}
-      {activePanel === 'git' && renderGit()}
-      {activePanel === 'mcp' && renderMCP()}
     </div>
   );
 };

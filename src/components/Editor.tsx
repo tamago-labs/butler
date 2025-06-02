@@ -20,6 +20,9 @@ const Editor: React.FC<EditorProps> = ({
   const handleEditorDidMount = (editor: monaco.editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
     
+    // Use the built-in vs-dark theme first
+    monaco.editor.setTheme('vs-dark');
+    
     // Configure editor options
     editor.updateOptions({
       fontSize: 14,
@@ -40,6 +43,17 @@ const Editor: React.FC<EditorProps> = ({
       parameterHints: { enabled: true },
       formatOnType: true,
       formatOnPaste: true,
+      cursorBlinking: 'smooth',
+      cursorSmoothCaretAnimation: true,
+      smoothScrolling: true,
+      fontLigatures: true,
+      renderLineHighlight: 'line',
+      bracketPairColorization: { enabled: true },
+      guides: {
+        bracketPairs: true,
+        indentation: true,
+        highlightActiveIndentation: true,
+      },
     });
 
     // Listen for cursor position changes
@@ -52,37 +66,6 @@ const Editor: React.FC<EditorProps> = ({
       }
     });
 
-    // Configure theme
-    monaco.editor.defineTheme('cursor-dark', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '6A9955' },
-        { token: 'keyword', foreground: '569CD6' },
-        { token: 'string', foreground: 'CE9178' },
-        { token: 'number', foreground: 'B5CEA8' },
-        { token: 'type', foreground: '4EC9B0' },
-        { token: 'class', foreground: '4EC9B0' },
-        { token: 'function', foreground: 'DCDCAA' },
-        { token: 'variable', foreground: '9CDCFE' },
-      ],
-      colors: {
-        'editor.background': '#1e1e1e',
-        'editor.foreground': '#d4d4d4',
-        'editor.lineHighlightBackground': '#2d2d2d',
-        'editor.selectionBackground': '#264f78',
-        'editor.inactiveSelectionBackground': '#3a3d41',
-        'editorCursor.foreground': '#007acc',
-        'editorWhitespace.foreground': '#404040',
-        'editorIndentGuide.background': '#404040',
-        'editorIndentGuide.activeBackground': '#707070',
-        'editor.selectionHighlightBackground': '#add6ff26',
-        'editorBracketMatch.background': '#0064001a',
-        'editorBracketMatch.border': '#888888',
-      }
-    });
-
-    monaco.editor.setTheme('cursor-dark');
     setupIntelliSense(editor, language);
   };
 
@@ -100,8 +83,8 @@ const Editor: React.FC<EditorProps> = ({
         value={value}
         onMount={handleEditorDidMount}
         onChange={handleEditorChange}
+        theme="vs-dark"
         options={{
-          theme: 'cursor-dark',
           fontSize: 14,
           fontFamily: 'Consolas, Monaco, "Courier New", monospace',
           minimap: { enabled: true },
@@ -111,6 +94,17 @@ const Editor: React.FC<EditorProps> = ({
           insertSpaces: true,
           renderWhitespace: 'boundary',
           automaticLayout: true,
+          cursorBlinking: 'smooth',
+          cursorSmoothCaretAnimation: true,
+          smoothScrolling: true,
+          fontLigatures: true,
+          renderLineHighlight: 'line',
+          bracketPairColorization: { enabled: true },
+          guides: {
+            bracketPairs: true,
+            indentation: true,
+            highlightActiveIndentation: true,
+          },
         }}
       />
     </div>

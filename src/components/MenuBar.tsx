@@ -5,7 +5,6 @@ import {
   Save, 
   Settings, 
   Search,
-  GitBranch,
   Terminal,
   HelpCircle,
   ChevronDown,
@@ -52,10 +51,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
       { label: 'Replace', action: 'replace', shortcut: 'Ctrl+H' },
     ],
     View: [
-      { label: 'Explorer', action: 'toggle-explorer', shortcut: 'Ctrl+Shift+E' },
-      { label: 'Search', action: 'toggle-search', shortcut: 'Ctrl+Shift+F', icon: <Search className="w-4 h-4" /> },
-      { label: 'Source Control', action: 'toggle-git', shortcut: 'Ctrl+Shift+G', icon: <GitBranch className="w-4 h-4" /> },
-      { label: 'Terminal', action: 'toggle-terminal', shortcut: 'Ctrl+`', icon: <Terminal className="w-4 h-4" /> },
+      { separator: true },
+      { label: 'AI Assistant', action: 'toggle-ai', shortcut: 'Ctrl+Shift+A' },
+      { label: 'MCP Tools', action: 'toggle-mcp', shortcut: 'Ctrl+Shift+M', icon: <Terminal className="w-4 h-4" /> },
       { separator: true },
       { label: 'Toggle Menu Bar', action: 'toggle-menu', shortcut: 'Ctrl+B' },
       { label: 'Command Palette', action: 'command-palette', shortcut: 'Ctrl+Shift+P' },
@@ -69,7 +67,6 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
       { label: 'Clear Chat History', action: 'clear-chat' },
     ],
     Tools: [
-      { label: 'MCP Servers', action: 'mcp-tools', icon: <Terminal className="w-4 h-4" /> },
       { label: 'Settings', action: 'settings', shortcut: 'Ctrl+,', icon: <Settings className="w-4 h-4" /> },
     ],
     Help: [

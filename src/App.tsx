@@ -2,12 +2,15 @@ import React, { useState, useCallback, useEffect } from 'react';
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
-import AIChat from './components/AIChat';
+import RightPanel from './components/RightPanel';
 import ToolPalette from './components/ToolPalette';
 import StatusBar from './components/StatusBar';
 import MenuBar from './components/MenuBar';
+import WelcomePage from './components/WelcomePage';
+import AuthForm from './components/auth/AuthForm';
 import { NotificationContainer, useNotifications } from './components/ui/Notifications';
 import { useFileManager } from './hooks/useFileManager';
+import { useAuth } from './hooks/useAuth';
 import type { FileTab } from './hooks/useFileManager';
 
 export interface MCPServer {
@@ -22,13 +25,14 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-type PanelType = 'explorer' | 'search' | 'git' | 'mcp';
-
 function App() {
-  const [activePanel, setActivePanel] = useState<PanelType>('explorer');
   const [isToolPaletteOpen, setIsToolPaletteOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [isMenuBarVisible, setIsMenuBarVisible] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
+
+  // Authentication Hook
+  const { user, isAuthenticated, login, register, githubAuth, hasAIAccess, useAICredit } = useAuth();
 
   // Notifications Hook
   const { notifications, removeNotification, success, error, warning, info } = useNotifications();
@@ -54,23 +58,29 @@ function App() {
 
   // Get current file or create a default one
   const currentFile = getActiveFile() || {
-    id: 'untitled-1',
-    name: 'Untitled',
-    content: '// Welcome to Butler - Your AI-Powered Code Editor\n// Open a folder or create files to get started\n\nfunction welcome() {\n  console.log("Ready to code with AI assistance!");\n}\n\nwelcome();',
+    id: 'welcome-tab',
+    name: 'Welcome',
+    content: '',
     language: 'javascript',
     isDirty: false
   };
 
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      sender: 'assistant',
-      content: 'Welcome to Butler! I\'m your AI coding assistant. I can help you with code analysis, debugging, suggestions, and more. Open a folder or file to get started!',
-      timestamp: new Date()
-    }
-  ]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+
+  // Initialize chat history based on authentication state
+  useEffect(() => {
+    const welcomeMessage: ChatMessage = {
+      id: 'welcome',
+      sender: 'assistant',
+      content: isAuthenticated 
+        ? `Welcome back, ${user?.name}! I'm ready to help you with your coding projects. Open a folder or create a file to get started.`
+        : 'Welcome to Butler! Please sign in to unlock AI assistance and start coding with intelligent help.',
+      timestamp: new Date()
+    };
+    setChatHistory([welcomeMessage]);
+  }, [isAuthenticated, user?.name]);
 
   // Mock MCP servers for UI demonstration
   const [mcpServers] = useState<MCPServer[]>([
@@ -132,6 +142,19 @@ function App() {
   }, [closeFile]);
 
   const handleSendMessage = useCallback(async (message: string) => {
+    // Check if user has AI access
+    if (!hasAIAccess()) {
+      error('AI Access Required', 'Please sign in or upgrade your plan to use AI assistance.');
+      setShowAuth(true);
+      return;
+    }
+
+    // Use AI credit
+    if (!useAICredit()) {
+      warning('No AI Credits', 'You have run out of AI credits. Please upgrade your plan for unlimited access.');
+      return;
+    }
+
     // Add user message
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}-user`,
@@ -168,12 +191,46 @@ function App() {
       };
       setChatHistory(prev => [...prev, aiMessage]);
     }, 1000);
-  }, [currentFile]);
+  }, [currentFile, hasAIAccess, useAICredit, error, warning]);
 
   const handleMCPAction = useCallback((serverName: string, action: 'start' | 'stop') => {
     console.log(`${action} MCP server: ${serverName} (mock)`);
     // In real implementation, this would manage actual MCP servers
   }, []);
+
+  // Authentication handlers
+  const handleLogin = useCallback(async (email: string, password: string) => {
+    try {
+      await login(email, password);
+      setShowAuth(false);
+      success('Welcome!', 'Successfully signed in to Butler.');
+    } catch (error) {
+      console.error('Login failed:', error);
+      // Error handling is done in the login function
+    }
+  }, [login, success]);
+
+  const handleRegister = useCallback(async (name: string, email: string, password: string) => {
+    try {
+      await register(name, email, password);
+      setShowAuth(false);
+      success('Account Created!', 'Welcome to Butler! You can now use AI assistance.');
+    } catch (error) {
+      console.error('Registration failed:', error);
+      // Error handling is done in the register function
+    }
+  }, [register, success]);
+
+  const handleGithubAuth = useCallback(async () => {
+    try {
+      await githubAuth();
+      setShowAuth(false);
+      success('GitHub Connected!', 'Successfully signed in with GitHub.');
+    } catch (error) {
+      console.error('GitHub auth failed:', error);
+      // Error handling is done in the githubAuth function
+    }
+  }, [githubAuth, success]);
 
   const toggleToolPalette = useCallback(() => {
     setIsToolPaletteOpen(prev => !prev);
@@ -198,15 +255,6 @@ function App() {
         break;
       case 'command-palette':
         setIsToolPaletteOpen(true);
-        break;
-      case 'toggle-explorer':
-        setActivePanel('explorer');
-        break;
-      case 'toggle-search':
-        setActivePanel('search');
-        break;
-      case 'toggle-git':
-        setActivePanel('git');
         break;
     }
   }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language]);
@@ -235,13 +283,13 @@ function App() {
         handleSendMessage(`How can I optimize this ${currentFile.language} code for better performance?`);
         break;
       case 'MCP Tools':
-        setActivePanel('mcp');
+        // MCP is now in right panel, no action needed
         break;
       case 'Search Files':
-        setActivePanel('search');
+        // Search is now integrated in file explorer
         break;
       case 'Source Control':
-        setActivePanel('git');
+        // Removed from sidebar
         break;
     }
   }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language]);
@@ -297,6 +345,41 @@ function App() {
 
   // Calculate the main content area width (excluding sidebar)
   const mainContentWidth = `calc(100% - ${sidebarWidth}px)`;
+  const hasOpenFiles = files.length > 0;
+  const showWelcomePage = !hasOpenFiles && !showAuth;
+
+  // Auth modal overlay
+  if (showAuth) {
+    return (
+      <div className="h-screen bg-editor-bg text-text-primary flex flex-col overflow-hidden">
+        <TitleBar currentFileName="Authentication" />
+        
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="w-full max-w-md">
+            <AuthForm
+              onLogin={handleLogin}
+              onRegister={handleRegister}
+              onGithubAuth={handleGithubAuth}
+            />
+            
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => setShowAuth(false)}
+                className="text-text-muted hover:text-text-primary text-sm"
+              >
+                ← Back to Butler
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <NotificationContainer 
+          notifications={notifications}
+          onClose={removeNotification}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-editor-bg text-text-primary flex flex-col overflow-hidden">
@@ -308,10 +391,6 @@ function App() {
       
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
-          activePanel={activePanel}
-          onPanelChange={setActivePanel}
-          mcpServers={mcpServers}
-          onMCPAction={handleMCPAction}
           width={sidebarWidth}
           fileTree={fileTree}
           workspaceRoot={workspaceRoot}
@@ -323,59 +402,70 @@ function App() {
           onCreateFile={handleNewFile}
         />
         
-        {/* Main Content Area - 50/50 Split */}
+        {/* Main Content Area - 50/50 Split or Welcome */}
         <div className="flex flex-1 overflow-hidden" style={{ width: mainContentWidth }}>
-          {/* Editor Section - 50% */}
-          <div className="w-1/2 flex flex-col overflow-hidden border-r border-border">
-            {/* Tab Bar */}
-            <div className="flex h-9 bg-titlebar-bg border-b border-border items-center px-3 overflow-x-auto">
-              {files.length === 0 ? (
-                <div className="flex items-center gap-2 bg-editor-bg px-3 py-1 rounded-t border-t border-l border-r border-border">
-                  <span className="text-sm">Welcome</span>
+          {showWelcomePage ? (
+            <WelcomePage
+              onOpenFolder={handleOpenFolder}
+              onShowAuth={() => setShowAuth(true)}
+              isAuthenticated={isAuthenticated}
+              userName={user?.name}
+            />
+          ) : (
+            <>
+              {/* Editor Section - 50% */}
+              <div className="w-1/2 flex flex-col overflow-hidden border-r border-border">
+                {/* Tab Bar */}
+                <div className="flex h-9 bg-titlebar-bg border-b border-border items-center px-3 overflow-x-auto">
+                  {files.length === 0 ? (
+                    <div className="flex items-center gap-2 bg-editor-bg px-3 py-1 rounded-t border-t border-l border-r border-border">
+                      <span className="text-sm">Welcome</span>
+                    </div>
+                  ) : (
+                    files.map((file) => (
+                      <div
+                        key={file.id}
+                        className={`flex items-center gap-2 px-3 py-1 rounded-t border-t border-l border-r border-border cursor-pointer ${
+                          file.id === activeFileId 
+                            ? 'bg-editor-bg text-text-primary' 
+                            : 'bg-gray-700 text-text-muted hover:text-text-primary'
+                        }`}
+                        onClick={() => setActiveFileId(file.id)}
+                      >
+                        <span className="text-sm">{file.name}</span>
+                        {file.isDirty && <span className="text-warning text-xs">●</span>}
+                        <button
+                          className="text-text-muted hover:text-text-primary text-sm ml-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCloseFile(file.id);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ) : (
-                files.map((file) => (
-                  <div
-                    key={file.id}
-                    className={`flex items-center gap-2 px-3 py-1 rounded-t border-t border-l border-r border-border cursor-pointer ${
-                      file.id === activeFileId 
-                        ? 'bg-editor-bg text-text-primary' 
-                        : 'bg-gray-700 text-text-muted hover:text-text-primary'
-                    }`}
-                    onClick={() => setActiveFileId(file.id)}
-                  >
-                    <span className="text-sm">{file.name}</span>
-                    {file.isDirty && <span className="text-warning text-xs">●</span>}
-                    <button
-                      className="text-text-muted hover:text-text-primary text-sm ml-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCloseFile(file.id);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <Editor
-              value={currentFile.content}
-              language={currentFile.language}
-              onChange={handleEditorChange}
-              onCursorPositionChange={setCursorPosition}
-            />
-          </div>
-          
-          {/* AI Chat Section - 50% */}
-          <div className="w-1/2 flex flex-col overflow-hidden">
-            <AIChat
-              chatHistory={chatHistory}
-              onSendMessage={handleSendMessage}
-              currentFile={currentFile}
-            />
-          </div>
+                
+                <Editor
+                  value={currentFile.content}
+                  language={currentFile.language}
+                  onChange={handleEditorChange}
+                  onCursorPositionChange={setCursorPosition}
+                />
+              </div>
+              
+              {/* AI Chat Section - 50% */}
+              <RightPanel
+                chatHistory={chatHistory}
+                onSendMessage={handleSendMessage}
+                currentFile={currentFile}
+                mcpServers={mcpServers}
+                onMCPAction={handleMCPAction}
+              />
+            </>
+          )}
         </div>
       </div>
       
