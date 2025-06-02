@@ -1,22 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  FileText, 
-  FolderOpen, 
-  Save, 
-  Settings, 
+import {
+  FileText,
+  FolderOpen,
+  Save,
+  Settings,
   Search,
   Terminal,
   HelpCircle,
   ChevronDown,
-  Brain
+  Brain,
+  SidebarOpen,
+  SidebarClose,
+  Plus,
+  Bot
 } from 'lucide-react';
 
 interface MenuBarProps {
   onAction: (action: string) => void;
+  isRightPanelVisible: boolean;
 }
 
 interface MenuItem {
-  label: string;
+  label?: string;
   action?: string;
   shortcut?: string;
   icon?: React.ReactNode;
@@ -24,15 +29,16 @@ interface MenuItem {
   separator?: boolean;
 }
 
-const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
+const MenuBar: React.FC<MenuBarProps> = ({ onAction, isRightPanelVisible }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null | undefined>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const menuItems: Record<string, MenuItem[]> = {
     File: [
-      { label: 'New File', action: 'new-file', shortcut: 'Ctrl+N', icon: <FileText className="w-4 h-4" /> },
-      { label: 'Open File', action: 'open-file', shortcut: 'Ctrl+O', icon: <FolderOpen className="w-4 h-4" /> },
+      { label: 'New File', action: 'new-file', shortcut: 'Ctrl+N', icon: <Plus className="w-4 h-4" /> },
+      { label: 'Open File...', action: 'open-file', shortcut: 'Ctrl+O', icon: <FileText className="w-4 h-4" /> },
+      { label: 'Open Folder...', action: 'open-folder', icon: <FolderOpen className="w-4 h-4" /> },
       { separator: true },
       { label: 'Save', action: 'save-file', shortcut: 'Ctrl+S', icon: <Save className="w-4 h-4" /> },
       { label: 'Save As...', action: 'save-as', shortcut: 'Ctrl+Shift+S' },
@@ -51,6 +57,12 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
       { label: 'Replace', action: 'replace', shortcut: 'Ctrl+H' },
     ],
     View: [
+      {
+        label: isRightPanelVisible ? 'Hide AI Panel' : 'Show AI Panel',
+        action: 'toggle-right-panel',
+        shortcut: 'Ctrl+J',
+        icon: isRightPanelVisible ? <Bot className="w-4 h-4" /> : <Bot className="w-4 h-4" />
+      },
       { separator: true },
       { label: 'AI Assistant', action: 'toggle-ai', shortcut: 'Ctrl+Shift+A' },
       { label: 'MCP Tools', action: 'toggle-mcp', shortcut: 'Ctrl+Shift+M', icon: <Terminal className="w-4 h-4" /> },
@@ -119,9 +131,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
     return (
       <button
         key={item.label}
-        className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-700 transition-colors ${
-          isSubmenu ? 'pl-8' : ''
-        }`}
+        className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-700 transition-colors ${isSubmenu ? 'pl-8' : ''
+          }`}
         onClick={() => {
           if (hasSubmenu) {
             setActiveSubmenu(activeSubmenu === item.label ? null : item.label);
@@ -154,9 +165,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
       {Object.entries(menuItems).map(([menuName, items]) => (
         <div key={menuName} className="relative">
           <button
-            className={`px-3 py-1 rounded hover:bg-gray-700 transition-colors ${
-              activeMenu === menuName ? 'bg-gray-700' : ''
-            }`}
+            className={`px-3 py-1 rounded hover:bg-gray-700 transition-colors ${activeMenu === menuName ? 'bg-gray-700' : ''
+              }`}
             onClick={() => handleMenuClick(menuName)}
             onMouseEnter={() => {
               if (activeMenu && activeMenu !== menuName) {
@@ -167,13 +177,13 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
           >
             {menuName}
           </button>
-          
+
           {activeMenu === menuName && (
             <div className="absolute top-full left-0 mt-1 w-64 bg-sidebar-bg border border-border rounded-md shadow-lg z-50 py-1">
               {items.map((item) => (
                 <div key={item.label} className="relative">
                   {renderMenuItem(item)}
-                  
+
                   {item.submenu && activeSubmenu === item.label && (
                     <div className="absolute top-0 left-full ml-1 w-56 bg-sidebar-bg border border-border rounded-md shadow-lg py-1">
                       {item.submenu.map((subItem) => renderMenuItem(subItem, true))}
@@ -185,14 +195,19 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction }) => {
           )}
         </div>
       ))}
-      
-      {/* Split Layout Indicator */}
-      <div className="ml-auto flex items-center gap-2 px-3 py-1 text-xs text-text-muted">
-        <div className="w-3 h-3 border border-accent rounded-sm flex">
-          <div className="w-1/2 bg-accent opacity-60"></div>
-          <div className="w-1/2 bg-accent opacity-30"></div>
-        </div>
-        <span>50/50 Split</span>
+       <div className="flex ml-auto">
+        <button
+          onClick={() => onAction("toggle-right-panel")}
+          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-700 rounded transition-colors no-drag text-xs text-text-muted"
+          title={isRightPanelVisible ? 'Hide Right Panel (Ctrl+J)' : 'Show Right Panel (Ctrl+J)'}
+        >
+          {isRightPanelVisible ? (
+            <SidebarClose className="w-3 h-3" />
+          ) : (
+            <SidebarOpen className="w-3 h-3" />
+          )}
+          <span>{isRightPanelVisible ? 'Hide AI Panel' : 'Show AI Panel'}</span>
+        </button>
       </div>
     </div>
   );

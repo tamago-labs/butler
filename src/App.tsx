@@ -1,4 +1,4 @@
-import  { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
@@ -11,7 +11,7 @@ import AuthForm from './components/auth/AuthForm';
 import { NotificationContainer, useNotifications } from './components/ui/Notifications';
 import { useFileManager } from './hooks/useFileManager';
 import { useAuth } from './hooks/useAuth';
-import type { FileTab } from './hooks/useFileManager';
+// import type { FileTab } from './hooks/useFileManager';
 
 
 export interface MCPServer {
@@ -30,6 +30,7 @@ function App() {
   const [isToolPaletteOpen, setIsToolPaletteOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [isMenuBarVisible, setIsMenuBarVisible] = useState(true);
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState(true); // NEW: Toggle right panel
   const [showAuth, setShowAuth] = useState(false);
 
   // Authentication Hook
@@ -67,7 +68,7 @@ function App() {
   };
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  
+
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
   // Initialize chat history based on authentication state
@@ -75,7 +76,7 @@ function App() {
     const welcomeMessage: ChatMessage = {
       id: 'welcome',
       sender: 'assistant',
-      content: isAuthenticated 
+      content: isAuthenticated
         ? `Welcome back, ${user?.name}! I'm ready to help you with your coding projects. You have ${user?.aiCredits} AI credits available.`
         : 'Welcome to Butler! You can start coding right away. For AI assistance, sign in to get 100 free credits and unlock intelligent code help.',
       timestamp: new Date()
@@ -104,7 +105,8 @@ function App() {
     try {
       const file = await openFile(filePath);
       if (file) {
-        success('File Opened', `Successfully opened ${file.name}`);
+        // success('File Opened', `Successfully opened ${file.name}`);
+        console.log('File Opened', `Successfully opened ${file.name}`)
       }
     } catch (err) {
       console.error('Failed to open file:', err);
@@ -116,7 +118,8 @@ function App() {
     try {
       const folderPath = await openFolder();
       if (folderPath) {
-        success('Folder Opened', `Successfully opened ${folderPath.split(/[/\\]/).pop()}`);
+        // success('Folder Opened', `Successfully opened ${folderPath.split(/[/\\]/).pop()}`);
+        console.log('Folder Opened', `Successfully opened ${folderPath.split(/[/\\]/).pop()}`)
       }
     } catch (err) {
       console.error('Failed to open folder:', err);
@@ -126,7 +129,7 @@ function App() {
 
   const handleSaveFile = useCallback(async () => {
     if (!activeFileId) return;
-    
+
     try {
       const saved = await saveFile(activeFileId);
       if (saved) {
@@ -152,7 +155,7 @@ function App() {
         timestamp: new Date()
       };
       setChatHistory(prev => [...prev, authPromptMessage]);
-      
+
       // Show a gentle notification instead of blocking
       info('AI Features Available', 'Sign in to unlock AI assistance with 100 free credits!');
       return;
@@ -177,7 +180,7 @@ function App() {
     setTimeout(() => {
       // Mock AI response with file context
       let response = `Thanks for your message: "${message}". `;
-      
+
       if (message.toLowerCase().includes('analyze')) {
         response += `I can see you're working with ${currentFile.language} code in "${currentFile.name}". The current file has ${currentFile.content.split('\n').length} lines. Here are some observations about your code structure and suggestions for improvement.`;
       } else if (message.toLowerCase().includes('help')) {
@@ -205,6 +208,11 @@ function App() {
   const handleMCPAction = useCallback((serverName: string, action: 'start' | 'stop') => {
     console.log(`${action} MCP server: ${serverName} (mock)`);
     // In real implementation, this would manage actual MCP servers
+  }, []);
+
+  // NEW: Toggle right panel for more editor space
+  const toggleRightPanel = useCallback(() => {
+    setIsRightPanelVisible(prev => !prev);
   }, []);
 
   // Authentication handlers
@@ -258,20 +266,27 @@ function App() {
       case 'open-file':
         handleOpenFile();
         break;
+      case 'open-folder':
+        handleOpenFolder();
+        break;
       case 'save-file':
         handleSaveFile();
         break;
       case 'toggle-menu':
         setIsMenuBarVisible(prev => !prev);
         break;
+      case 'toggle-right-panel': // NEW: Menu action for toggling right panel
+        toggleRightPanel();
+        break;
       case 'analyze-code':
+        if (!isRightPanelVisible) setIsRightPanelVisible(true); // Show panel when using AI
         handleSendMessage(`Please analyze my ${currentFile.language} code`);
         break;
       case 'command-palette':
         setIsToolPaletteOpen(true);
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel]);
 
   const handleToolCommand = useCallback((command: string) => {
     switch (command) {
@@ -284,16 +299,23 @@ function App() {
       case 'Save File':
         handleSaveFile();
         break;
+      case 'Toggle Right Panel':
+        toggleRightPanel();
+        break;
       case 'Analyze Code':
+        if (!isRightPanelVisible) setIsRightPanelVisible(true); // Show panel when using AI
         handleSendMessage(`Please analyze my ${currentFile.language} code`);
         break;
       case 'Find Issues':
+        if (!isRightPanelVisible) setIsRightPanelVisible(true);
         handleSendMessage(`Review my ${currentFile.language} code for potential bugs and issues`);
         break;
       case 'Explain Code':
+        if (!isRightPanelVisible) setIsRightPanelVisible(true);
         handleSendMessage(`Explain what this ${currentFile.language} code does and how it works`);
         break;
       case 'Optimize Code':
+        if (!isRightPanelVisible) setIsRightPanelVisible(true);
         handleSendMessage(`How can I optimize this ${currentFile.language} code for better performance?`);
         break;
       case 'MCP Tools':
@@ -306,7 +328,7 @@ function App() {
         // Removed from sidebar
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -345,9 +367,13 @@ function App() {
               handleCloseFile(activeFileId);
             }
             break;
+          case 'j': // NEW: Ctrl+J to toggle right panel (like VS Code)
+            e.preventDefault();
+            toggleRightPanel();
+            break;
         }
       }
-      
+
       if (e.key === 'Escape') {
         setIsToolPaletteOpen(false);
       }
@@ -355,7 +381,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSaveFile, toggleToolPalette, activeFileId, handleCloseFile]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSaveFile, toggleToolPalette, activeFileId, handleCloseFile, toggleRightPanel]);
 
   // Calculate the main content area width (excluding sidebar)
   const mainContentWidth = `calc(100% - ${sidebarWidth}px)`;
@@ -366,14 +392,16 @@ function App() {
   if (showAuth) {
     return (
       <div className="h-screen bg-editor-bg text-text-primary flex flex-col overflow-hidden">
-        <TitleBar 
-          currentFileName="Authentication" 
+        <TitleBar
+          currentFileName="Authentication"
           user={user}
           isAuthenticated={isAuthenticated}
           onLogout={handleLogout}
           onShowAuth={() => setShowAuth(true)}
+          isRightPanelVisible={isRightPanelVisible}
+          onToggleRightPanel={toggleRightPanel}
         />
-        
+
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-md">
             <AuthForm
@@ -381,7 +409,7 @@ function App() {
               onRegister={handleRegister}
               onGithubAuth={handleGithubAuth}
             />
-            
+
             <div className="mt-6 text-center">
               <button
                 onClick={() => setShowAuth(false)}
@@ -392,8 +420,8 @@ function App() {
             </div>
           </div>
         </div>
-        
-        <NotificationContainer 
+
+        <NotificationContainer
           notifications={notifications}
           onClose={removeNotification}
         />
@@ -403,18 +431,18 @@ function App() {
 
   return (
     <div className="h-screen bg-editor-bg text-text-primary flex flex-col overflow-hidden">
-      <TitleBar 
-        currentFileName={currentFile.name} 
+      <TitleBar
+        currentFileName={currentFile.name}
         user={user}
         isAuthenticated={isAuthenticated}
         onLogout={handleLogout}
         onShowAuth={() => setShowAuth(true)}
       />
-      
+
       {isMenuBarVisible && (
-        <MenuBar onAction={handleMenuAction} />
+        <MenuBar onAction={handleMenuAction} isRightPanelVisible={isRightPanelVisible} />
       )}
-      
+
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           width={sidebarWidth}
@@ -427,7 +455,7 @@ function App() {
           onRefreshWorkspace={refreshWorkspace}
           onCreateFile={handleNewFile}
         />
-        
+
         {/* Main Content Area - 50/50 Split or Welcome */}
         <div className="flex flex-1 overflow-hidden" style={{ width: mainContentWidth }}>
           {showWelcomePage ? (
@@ -439,8 +467,8 @@ function App() {
             />
           ) : (
             <>
-              {/* Editor Section - 50% */}
-              <div className="w-1/2 flex flex-col overflow-hidden border-r border-border">
+              {/* Editor Section - Dynamic Width */}
+              <div className={`flex flex-col overflow-hidden ${isRightPanelVisible ? 'w-1/2 border-r border-border' : 'w-full'}`}>
                 {/* Tab Bar */}
                 <div className="flex h-9 bg-titlebar-bg border-b border-border items-center px-3 overflow-x-auto">
                   {files.length === 0 ? (
@@ -451,11 +479,10 @@ function App() {
                     files.map((file) => (
                       <div
                         key={file.id}
-                        className={`flex items-center gap-2 px-3 py-1 rounded-t border-t border-l border-r border-border cursor-pointer ${
-                          file.id === activeFileId 
-                            ? 'bg-editor-bg text-text-primary' 
-                            : 'bg-gray-700 text-text-muted hover:text-text-primary'
-                        }`}
+                        className={`flex items-center gap-2 px-3 py-1 rounded-t border-t border-l border-r border-border cursor-pointer ${file.id === activeFileId
+                          ? 'bg-editor-bg text-text-primary'
+                          : 'bg-gray-700 text-text-muted hover:text-text-primary'
+                          }`}
                         onClick={() => setActiveFileId(file.id)}
                       >
                         <span className="text-sm">{file.name}</span>
@@ -473,7 +500,7 @@ function App() {
                     ))
                   )}
                 </div>
-                
+
                 <Editor
                   value={currentFile.content}
                   language={currentFile.language}
@@ -481,37 +508,41 @@ function App() {
                   onCursorPositionChange={setCursorPosition}
                 />
               </div>
-              
-              {/* AI Chat Section - 50% */}
-              <RightPanel
-                chatHistory={chatHistory}
-                onSendMessage={handleSendMessage}
-                currentFile={currentFile}
-                mcpServers={mcpServers}
-                onMCPAction={handleMCPAction}
-                isAuthenticated={isAuthenticated}
-                onShowAuth={() => setShowAuth(true)}
-              />
+
+              {/* Right Panel - Conditional Render */}
+              {isRightPanelVisible && (
+                <RightPanel
+                  chatHistory={chatHistory}
+                  onSendMessage={handleSendMessage}
+                  currentFile={currentFile}
+                  mcpServers={mcpServers}
+                  onMCPAction={handleMCPAction}
+                  isAuthenticated={isAuthenticated}
+                  onShowAuth={() => setShowAuth(true)}
+                />
+              )}
             </>
           )}
         </div>
       </div>
-      
+
       <StatusBar
         language={currentFile.language}
         lineNumber={cursorPosition.line}
         column={cursorPosition.column}
         aiStatus="Active"
+        isRightPanelVisible={isRightPanelVisible}
+        onToggleRightPanel={toggleRightPanel}
       />
-      
+
       {isToolPaletteOpen && (
         <ToolPalette
           onClose={() => setIsToolPaletteOpen(false)}
           onCommand={handleToolCommand}
         />
       )}
-      
-      <NotificationContainer 
+
+      <NotificationContainer
         notifications={notifications}
         onClose={removeNotification}
       />

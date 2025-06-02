@@ -6,12 +6,13 @@ import {
   Save, 
   Brain, 
   Terminal,
-  GitBranch,
   Settings,
   Code,
   Bug,
   Lightbulb,
-  Zap
+  Zap,
+  SidebarOpen,
+  SidebarClose
 } from 'lucide-react';
 
 interface ToolPaletteProps {
@@ -90,28 +91,23 @@ const ToolPalette: React.FC<ToolPaletteProps> = ({ onClose, onCommand }) => {
       category: 'AI' 
     },
 
-    // Tools
+    // View Operations
     { 
-      id: 'mcp-tools', 
-      label: 'MCP Tools', 
-      description: 'Manage MCP servers',
-      icon: <Terminal className="w-4 h-4" />, 
-      category: 'Tools' 
+      id: 'toggle-right-panel', 
+      label: 'Toggle Right Panel', 
+      description: 'Show/hide the right panel for more editor space',
+      shortcut: 'Ctrl+J',
+      icon: <SidebarOpen className="w-4 h-4" />, 
+      category: 'View' 
     },
+
+    // Tools
     { 
       id: 'search-files', 
       label: 'Search Files', 
       description: 'Search across project files',
       shortcut: 'Ctrl+Shift+F',
       icon: <Search className="w-4 h-4" />, 
-      category: 'Tools' 
-    },
-    { 
-      id: 'source-control', 
-      label: 'Source Control', 
-      description: 'Git operations and history',
-      shortcut: 'Ctrl+Shift+G',
-      icon: <GitBranch className="w-4 h-4" />, 
       category: 'Tools' 
     },
     { 

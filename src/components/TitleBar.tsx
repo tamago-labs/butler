@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Minimize2, Square, X, User, LogOut, Settings } from 'lucide-react';
+import { Brain, Minimize2, Square, X, User, LogOut, Settings, SidebarOpen, SidebarClose, ConciergeBell } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface TitleBarProps {
@@ -15,7 +15,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
   user, 
   isAuthenticated, 
   onLogout, 
-  onShowAuth 
+  onShowAuth
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -31,12 +31,13 @@ const TitleBar: React.FC<TitleBarProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
   return (
     <div className="h-10 bg-titlebar-bg border-b border-border flex items-center justify-between px-4 text-sm drag-region">
       {/* Left: App Title and File */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-accent" />
+          <ConciergeBell className="w-5 h-5 text-accent" />
           <span className="font-medium text-text-primary">Butler</span>
         </div>
         
@@ -46,16 +47,21 @@ const TitleBar: React.FC<TitleBarProps> = ({
         </div>
       </div>
 
-      {/* Center: Split Layout Indicator */}
-      <div className="flex items-center gap-2 text-xs text-text-muted">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 border border-accent rounded-sm flex">
-            <div className="w-1/2 bg-accent opacity-60"></div>
-            <div className="w-1/2 bg-accent opacity-30"></div>
-          </div>
-          <span>50/50 Split</span>
-        </div>
-      </div>
+      {/* Center: Right Panel Toggle */}
+      {/* <div className="flex items-center">
+        <button
+          onClick={onToggleRightPanel}
+          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-700 rounded transition-colors no-drag text-xs text-text-muted"
+          title={isRightPanelVisible ? 'Hide Right Panel (Ctrl+J)' : 'Show Right Panel (Ctrl+J)'}
+        >
+          {isRightPanelVisible ? (
+            <SidebarClose className="w-3 h-3" />
+          ) : (
+            <SidebarOpen className="w-3 h-3" />
+          )}
+          <span>{isRightPanelVisible ? 'Hide Panel' : 'Show Panel'}</span>
+        </button>
+      </div> */}
 
       {/* Right: User Menu and Window Controls */}
       <div className="flex items-center gap-2">

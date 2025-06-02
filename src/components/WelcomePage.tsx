@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Star,
   Users,
-  Download
+  Download,
+  ConciergeBell
 } from 'lucide-react';
 
 interface WelcomePageProps {
@@ -99,7 +100,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
         {/* Header */}
         <div className="text-center space-y-6">
           <div className="flex items-center justify-center gap-4 mb-6">
-            <Brain className="w-12 h-12 text-accent" />
+            <ConciergeBell className="w-12 h-12 text-accent" />
             <h1 className="text-4xl font-bold text-text-primary">Butler</h1>
           </div>
           
