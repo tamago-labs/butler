@@ -11,6 +11,7 @@ import AuthForm from './components/auth/AuthForm';
 import { NotificationContainer, useNotifications } from './components/ui/Notifications';
 import { useFileManager } from './hooks/useFileManager';
 import { useAuth } from './hooks/useAuth';
+import { exit } from '@tauri-apps/plugin-process';
 // import type { FileTab } from './hooks/useFileManager';
 
 
@@ -258,6 +259,10 @@ function App() {
     setIsToolPaletteOpen(prev => !prev);
   }, []);
 
+  const handleExit = useCallback(async () => {
+    await exit(0)
+  },[])
+
   const handleMenuAction = useCallback((action: string) => {
     switch (action) {
       case 'new-file':
@@ -284,6 +289,9 @@ function App() {
         break;
       case 'command-palette':
         setIsToolPaletteOpen(true);
+        break;
+      case 'exit':
+        handleExit();
         break;
     }
   }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel]);
