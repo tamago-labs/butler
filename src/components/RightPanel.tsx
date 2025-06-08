@@ -44,8 +44,6 @@ const RightPanel: React.FC<RightPanelProps> = ({
   onRefreshCredits
 }) => {
 
-  
-
   const [activeTab, setActiveTab] = useState<RightPanelTab>('ai');
 
   const tabs = [

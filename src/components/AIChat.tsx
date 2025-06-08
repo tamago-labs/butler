@@ -331,7 +331,7 @@ const AIChat: React.FC<AIChatProps> = ({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder="Ask Claude anything about your code..."
+                  placeholder="Ask AI anything about your code..."
                   className="w-full bg-gray-700 border border-border rounded px-3 py-2 resize-none text-text-primary focus:outline-none focus:border-accent transition-colors"
                   style={{ minHeight: '40px' }}
                   disabled={isLoading}

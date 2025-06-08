@@ -157,7 +157,7 @@ function App() {
         timestamp: new Date()
       };
       setChatHistory(prev => [...prev, authPromptMessage]);
-      info('Claude AI Available', 'Sign in to unlock Claude AI assistance!');
+      info('AI Available', 'Sign in to unlock Claude AI assistance!');
       return;
     }
 
@@ -241,11 +241,11 @@ function App() {
 
       // Update the AI message with a user-friendly error
       const errorContent = claudeError.message?.includes('API key')
-        ? "It looks like there's an issue with the Claude API configuration. Please check your API key and try again."
+        ? "It looks like there's an issue with the API configuration. Please check your API key and try again."
         : claudeError.message?.includes('rate limit')
           ? "I'm currently receiving a lot of requests. Please wait a moment and try again."
           : claudeError.message?.includes('quota')
-            ? "You've reached your Claude API usage limit. Please check your Anthropic account or try again later."
+            ? "You've reached your API usage limit. Please check your account or try again later."
             : `I encountered an error while processing your request: ${claudeError.message || 'Unknown error'}. Please try again.`;
 
       setChatHistory(prev => prev.map(msg =>
@@ -255,14 +255,14 @@ function App() {
       ));
 
       // Show notification with more details for debugging
-      error('Claude AI Error', 'Failed to get AI response. Check console for details.');
+      error('AI Error', 'Failed to get AI response. Check console for details.');
     }
   }, [currentFile, hasAIAccess, useAICredit, claudeService, info, warning, error, chatHistory, setChatHistory]);
 
   // Real Claude quick actions helper
   const handleQuickAIAction = useCallback(async (actionType: 'analyze' | 'debug' | 'explain' | 'optimize') => {
     if (!claudeService) {
-      error('Claude Unavailable', 'Claude AI service is not available.');
+      error('AI Unavailable', 'Claude AI service is not available.');
       return;
     }
 
