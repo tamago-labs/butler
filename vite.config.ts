@@ -2,17 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
-// @ts-expect-error process is a nodejs global
-const claudeApiKey = process.env.CLAUDE_API_KEY
+const host = process.env.TAURI_DEV_HOST; 
 
 // https://vitejs.dev/config/
-export default defineConfig(async () => ({
-  plugins: [react()], 
-  define: {
-    'process.env.CLAUDE_API_KEY': claudeApiKey
-  },
-
+export default defineConfig(async () => ({ 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent vite from obscuring rust errors

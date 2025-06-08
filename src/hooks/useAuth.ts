@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ClaudeService } from '../services/claudeService';
-
-// @ts-expect-error process is a nodejs global
-const API_KEY = process.env.CLAUDE_API_KEY || "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"
+ 
+const API_KEY = atob("c2stYW50LWFwaTAzLVpCQTN3ejVfT1RvTUlUd1gtM2xXMDk2bkwtSWhwbGdFLTBBRXJOakJKNmwyT2dRTjhwZXNVVHpvMG1UeWdrNndCaktvMDZKa0RLZVpRVkM2SDc1NGVnLUhVZG0yd0FB")
 
 export interface User {
   id: string;
