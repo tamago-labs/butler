@@ -6,7 +6,7 @@ import RightPanel from './components/RightPanel';
 import ToolPalette from './components/ToolPalette';
 import StatusBar from './components/StatusBar';
 import MenuBar from './components/MenuBar';
-import WelcomePage from './components/WelcomePage'; 
+import WelcomePage from './components/WelcomePage';
 import AccessKeyForm from './components/auth/AccessKeyForm';
 import { NotificationContainer, useNotifications } from './components/ui/Notifications';
 import { useFileManager } from './hooks/useFileManager';
@@ -32,10 +32,10 @@ function App() {
   const [isToolPaletteOpen, setIsToolPaletteOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [isMenuBarVisible, setIsMenuBarVisible] = useState(true);
-  const [isRightPanelVisible, setIsRightPanelVisible] = useState(true); // NEW: Toggle right panel
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
 
-  // Authentication Hook
+  // Authentication Hook - now includes claudeService
   const { user, isAuthenticated, authenticateWithAccessKey, validateAccessKey, logout, hasAIAccess, useAICredit, refreshCredits, claudeService } = useAuth();
 
   // Notifications Hook
@@ -74,17 +74,17 @@ function App() {
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
   // Initialize chat history based on authentication state
-  useEffect(() => {
-    const welcomeMessage: ChatMessage = {
-      id: 'welcome',
-      sender: 'assistant',
-      content: isAuthenticated
-        ? `Welcome back, ${user?.name}! I'm ready to help you with your coding projects. You have ${user?.aiCredits} AI credits available.`
-        : 'Welcome to Butler! You can start coding right away. For AI assistance, sign in to get 100 free credits and unlock intelligent code help.',
-      timestamp: new Date()
-    };
-    setChatHistory([welcomeMessage]);
-  }, [isAuthenticated, user?.name, user?.aiCredits]);
+  // useEffect(() => {
+  //   const welcomeMessage: ChatMessage = {
+  //     id: 'welcome',
+  //     sender: 'assistant',
+  //     content: isAuthenticated
+  //       ? `Welcome back, ${user?.name}! I'm ready to help you with your coding projects. You have ${user?.aiCredits} AI credits available.`
+  //       : 'Welcome to Butler! You can start coding right away. For AI assistance, sign in to get credits and unlock intelligent code help.',
+  //     timestamp: new Date()
+  //   };
+  //   setChatHistory([welcomeMessage]);
+  // }, [isAuthenticated, user?.name, user?.aiCredits]);
 
   // Mock MCP servers for UI demonstration
   const [mcpServers] = useState<MCPServer[]>([
@@ -107,27 +107,25 @@ function App() {
     try {
       const file = await openFile(filePath);
       if (file) {
-        // success('File Opened', `Successfully opened ${file.name}`);
         console.log('File Opened', `Successfully opened ${file.name}`)
       }
     } catch (err) {
       console.error('Failed to open file:', err);
       error('Failed to Open File', 'Could not open the selected file. Please check if the file exists and you have permission to access it.');
     }
-  }, [openFile, success, error]);
+  }, [openFile, error]);
 
   const handleOpenFolder = useCallback(async () => {
     try {
       const folderPath = await openFolder();
       if (folderPath) {
-        // success('Folder Opened', `Successfully opened ${folderPath.split(/[/\\]/).pop()}`);
         console.log('Folder Opened', `Successfully opened ${folderPath.split(/[/\\]/).pop()}`)
       }
     } catch (err) {
       console.error('Failed to open folder:', err);
       error('Failed to Open Folder', 'Could not open the selected folder. Please check if the folder exists and you have permission to access it.');
     }
-  }, [openFolder, success, error]);
+  }, [openFolder, error]);
 
   const handleSaveFile = useCallback(async () => {
     if (!activeFileId) return;
@@ -147,19 +145,32 @@ function App() {
     closeFile(fileId);
   }, [closeFile]);
 
+  // REAL CLAUDE INTEGRATION - Replace the mock implementation
   const handleSendMessage = useCallback(async (message: string) => {
+
     // Check if user has AI access
     if (!hasAIAccess()) {
       const authPromptMessage: ChatMessage = {
         id: `auth-prompt-${Date.now()}`,
         sender: 'assistant',
-        content: 'I\'d love to help you with that! To use AI assistance, please sign in to your Butler account. You\'ll get 100 free AI credits to get started.',
+        content: 'I\'d love to help you with that! To use AI assistance, please sign in to your Butler account. You\'ll get AI credits to get started.',
         timestamp: new Date()
       };
       setChatHistory(prev => [...prev, authPromptMessage]);
+      info('Claude AI Available', 'Sign in to unlock Claude AI assistance!');
+      return;
+    }
 
-      // Show a gentle notification instead of blocking
-      info('AI Features Available', 'Sign in to unlock AI assistance with 100 free credits!');
+    // Check if Claude service is available
+    if (!claudeService) {
+      const errorMessage: ChatMessage = {
+        id: `error-${Date.now()}`,
+        sender: 'assistant',
+        content: 'Sorry, AI service is currently unavailable. Please check your connection and try again.',
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
+      error('AI Unavailable', 'The AI service is not available. Please check your API key configuration.');
       return;
     }
 
@@ -168,51 +179,161 @@ function App() {
       warning('No AI Credits', 'You have run out of AI credits. Please upgrade your plan for unlimited access.');
       return;
     }
-
-    // Add user message
+  
+    // Add user message to chat history
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}-user`,
       sender: 'user',
       content: message,
       timestamp: new Date()
     };
+
     setChatHistory(prev => [...prev, userMessage]);
+ 
+    // Add initial AI message that we'll update with streaming content
+    const aiMessageId = `msg-${Date.now()}-ai`;
+    const initialAIMessage: ChatMessage = {
+      id: aiMessageId,
+      sender: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+    setChatHistory(prev => [...prev, initialAIMessage]);
 
-    // Simulate AI thinking delay
-    setTimeout(() => {
-      // Mock AI response with file context
-      let response = `Thanks for your message: "${message}". `;
+    try {
+      let accumulatedResponse = '';
 
-      if (message.toLowerCase().includes('analyze')) {
-        response += `I can see you're working with ${currentFile.language} code in "${currentFile.name}". The current file has ${currentFile.content.split('\n').length} lines. Here are some observations about your code structure and suggestions for improvement.`;
-      } else if (message.toLowerCase().includes('help')) {
-        response += 'I can help you with code analysis, debugging, suggestions, refactoring, and more. What would you like me to help you with?';
-      } else if (message.toLowerCase().includes('error') || message.toLowerCase().includes('bug')) {
-        response += "I'll help you debug that! Here are some common issues to check for and potential solutions based on your current file.";
-      } else if (message.toLowerCase().includes('explain')) {
-        response += `Let me explain your ${currentFile.language} code. I can see the structure and will break down what each part does.`;
-      } else if (message.toLowerCase().includes('optimize')) {
-        response += `I'll analyze your ${currentFile.language} code for optimization opportunities. Here are some performance improvements you could consider.`;
-      } else {
-        response += `I'm ready to help with your ${currentFile.language} development in "${currentFile.name}". I can analyze your code, suggest improvements, help debug issues, and much more!`;
+      // Use Claude's streaming API for real-time responses
+      const stream = claudeService.streamAnalyzeCode(
+        currentFile.content,
+        currentFile.language,
+        message,
+        currentFile.name
+      );
+
+      // Process the streaming response
+      for await (const chunk of stream) {
+        accumulatedResponse += chunk;
+
+        // Update the AI message in real-time as content streams in
+        setChatHistory(prev => prev.map(msg =>
+          msg.id === aiMessageId
+            ? { ...msg, content: accumulatedResponse }
+            : msg
+        ));
       }
 
+      // Ensure the final message is complete
+      if (!accumulatedResponse.trim()) {
+        setChatHistory(prev => prev.map(msg =>
+          msg.id === aiMessageId
+            ? {
+              ...msg,
+              content: "I apologize, but I didn't receive a complete response. Please try your question again."
+            }
+            : msg
+        ));
+      }
+
+    } catch (claudeError: any) {
+
+      console.error('The AI request failed:', claudeError);
+
+      // Update the AI message with a user-friendly error
+      const errorContent = claudeError.message?.includes('API key')
+        ? "It looks like there's an issue with the Claude API configuration. Please check your API key and try again."
+        : claudeError.message?.includes('rate limit')
+          ? "I'm currently receiving a lot of requests. Please wait a moment and try again."
+          : claudeError.message?.includes('quota')
+            ? "You've reached your Claude API usage limit. Please check your Anthropic account or try again later."
+            : `I encountered an error while processing your request: ${claudeError.message || 'Unknown error'}. Please try again.`;
+
+      setChatHistory(prev => prev.map(msg =>
+        msg.id === aiMessageId
+          ? { ...msg, content: errorContent }
+          : msg
+      ));
+
+      // Show notification with more details for debugging
+      error('Claude AI Error', 'Failed to get AI response. Check console for details.');
+    }
+  }, [currentFile, hasAIAccess, useAICredit, claudeService, info, warning, error, chatHistory, setChatHistory]);
+
+  // Real Claude quick actions helper
+  const handleQuickAIAction = useCallback(async (actionType: 'analyze' | 'debug' | 'explain' | 'optimize') => {
+    if (!claudeService) {
+      error('Claude Unavailable', 'Claude AI service is not available.');
+      return;
+    }
+
+    if (!currentFile.content.trim()) {
+      info('No Code to Analyze', 'Please add some code to the current file first.');
+      return;
+    }
+
+    try {
+      let aiResponse = '';
+
+      // Use Claude's specialized methods for different actions
+      switch (actionType) {
+        case 'analyze':
+          aiResponse = await claudeService.analyzeCode(
+            currentFile.content,
+            currentFile.language,
+            "Please analyze this code and provide insights on its structure, potential improvements, and best practices.",
+            currentFile.name
+          );
+          break;
+
+        case 'debug':
+          aiResponse = await claudeService.findBugs(
+            currentFile.content,
+            currentFile.language,
+            currentFile.name
+          );
+          break;
+
+        case 'explain':
+          aiResponse = await claudeService.explainCode(
+            currentFile.content,
+            currentFile.language,
+            currentFile.name
+          );
+          break;
+
+        case 'optimize':
+          aiResponse = await claudeService.optimizeCode(
+            currentFile.content,
+            currentFile.language,
+            currentFile.name
+          );
+          break;
+      }
+
+      // Add the AI response to chat history
       const aiMessage: ChatMessage = {
-        id: `msg-${Date.now()}-ai`,
+        id: `quick-action-${Date.now()}`,
         sender: 'assistant',
-        content: response,
+        content: aiResponse,
         timestamp: new Date()
       };
       setChatHistory(prev => [...prev, aiMessage]);
-    }, 1000);
-  }, [currentFile, hasAIAccess, useAICredit, info, warning]);
+
+      // Use a credit for quick actions too
+      useAICredit();
+
+    } catch (error: any) {
+      console.error(`Quick action ${actionType} failed:`, error);
+      error('Quick Action Failed', `Failed to ${actionType} code. Please try again.`);
+    }
+  }, [claudeService, currentFile, useAICredit, error, info, setChatHistory]);
 
   const handleMCPAction = useCallback((serverName: string, action: 'start' | 'stop') => {
     console.log(`${action} MCP server: ${serverName} (mock)`);
     // In real implementation, this would manage actual MCP servers
   }, []);
 
-  // NEW: Toggle right panel for more editor space
+  // Toggle right panel for more editor space
   const toggleRightPanel = useCallback(async () => {
     // Check if no files are open and trying to show the AI panel
     if (!isRightPanelVisible && files.length === 0) {
@@ -222,7 +343,7 @@ function App() {
       });
       return;
     }
-    
+
     setIsRightPanelVisible(prev => !prev);
   }, [isRightPanelVisible, files.length]);
 
@@ -231,7 +352,7 @@ function App() {
     try {
       await authenticateWithAccessKey(accessKey);
       setShowAuth(false);
-      success('Welcome!', 'Successfully authenticated to Butler managed service');
+      success('Welcome!', 'Successfully authenticated to Butler with Claude AI!');
     } catch (error: any) {
       console.error('Authentication failed:', error);
       // Error handling is done in the authenticateWithAccessKey function
@@ -271,7 +392,7 @@ function App() {
 
   const handleExit = useCallback(async () => {
     await exit(0)
-  },[])
+  }, [])
 
   const handleMenuAction = useCallback(async (action: string) => {
     switch (action) {
@@ -290,7 +411,7 @@ function App() {
       case 'toggle-menu':
         setIsMenuBarVisible(prev => !prev);
         break;
-      case 'toggle-right-panel': // NEW: Menu action for toggling right panel
+      case 'toggle-right-panel':
         await toggleRightPanel();
         break;
       case 'analyze-code':
@@ -304,7 +425,8 @@ function App() {
           }
           setIsRightPanelVisible(true);
         }
-        handleSendMessage(`Please analyze my ${currentFile.language} code`);
+        // Use real Claude instead of mock
+        handleQuickAIAction('analyze');
         break;
       case 'command-palette':
         setIsToolPaletteOpen(true);
@@ -313,7 +435,7 @@ function App() {
         handleExit();
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel, files.length]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, handleQuickAIAction, isRightPanelVisible, toggleRightPanel, files.length]);
 
   const handleToolCommand = useCallback(async (command: string) => {
     switch (command) {
@@ -340,7 +462,7 @@ function App() {
           }
           setIsRightPanelVisible(true);
         }
-        handleSendMessage(`Please analyze my ${currentFile.language} code`);
+        handleQuickAIAction('analyze');
         break;
       case 'Find Issues':
         if (!isRightPanelVisible) {
@@ -353,7 +475,7 @@ function App() {
           }
           setIsRightPanelVisible(true);
         }
-        handleSendMessage(`Review my ${currentFile.language} code for potential bugs and issues`);
+        handleQuickAIAction('debug');
         break;
       case 'Explain Code':
         if (!isRightPanelVisible) {
@@ -366,7 +488,7 @@ function App() {
           }
           setIsRightPanelVisible(true);
         }
-        handleSendMessage(`Explain what this ${currentFile.language} code does and how it works`);
+        handleQuickAIAction('explain');
         break;
       case 'Optimize Code':
         if (!isRightPanelVisible) {
@@ -379,7 +501,7 @@ function App() {
           }
           setIsRightPanelVisible(true);
         }
-        handleSendMessage(`How can I optimize this ${currentFile.language} code for better performance?`);
+        handleQuickAIAction('optimize');
         break;
       case 'MCP Tools':
         // MCP is now in right panel, no action needed
@@ -391,7 +513,7 @@ function App() {
         // Removed from sidebar
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleSendMessage, currentFile.language, isRightPanelVisible, toggleRightPanel, files.length]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, handleQuickAIAction, isRightPanelVisible, toggleRightPanel, files.length]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -430,7 +552,7 @@ function App() {
               handleCloseFile(activeFileId);
             }
             break;
-          case 'j': // NEW: Ctrl+J to toggle right panel (like VS Code)
+          case 'j':
             e.preventDefault();
             toggleRightPanel();
             break;
@@ -449,7 +571,7 @@ function App() {
   // Calculate the main content area width (excluding sidebar)
   const mainContentWidth = `calc(100% - ${sidebarWidth}px)`;
   const hasOpenFiles = files.length > 0;
-  const showWelcomePage = !hasOpenFiles && !showAuth; // Show welcome for both auth states
+  const showWelcomePage = !hasOpenFiles && !showAuth;
 
   // Auth modal overlay
   if (showAuth) {
