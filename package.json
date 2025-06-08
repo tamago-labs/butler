@@ -10,6 +10,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.53.0",
     "@monaco-editor/react": "^4.6.0",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.2.2",

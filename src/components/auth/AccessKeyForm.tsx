@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Brain, Key, ExternalLink, AlertCircle, CheckCircle } from 'lucide-react';
+import {  Key, AlertCircle, CheckCircle, ConciergeBell } from 'lucide-react';
 
 interface AccessKeyFormProps {
   onAuthenticate: (accessKey: string) => Promise<void>;
@@ -59,25 +59,25 @@ const AccessKeyForm: React.FC<AccessKeyFormProps> = ({ onAuthenticate, onValidat
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Brain className="w-8 h-8 text-accent" />
+            <ConciergeBell className="w-8 h-8 text-accent" />
             <h1 className="text-2xl font-bold text-text-primary">Butler</h1>
           </div>
-          <h2 className="text-xl font-semibold text-text-primary mb-2">
+          {/* <h2 className="text-xl font-semibold text-text-primary mb-2">
             Access Key Authentication
           </h2>
           <p className="text-text-muted">
             Enter your access key from Tamago Labs to unlock AI-powered coding assistance
-          </p>
+          </p> */}
         </div>
 
         {/* Get Access Key Button */}
-        <button
+        {/* <button
           onClick={openTamagoLabs}
           className="w-full flex items-center justify-center gap-3 bg-accent hover:bg-accent-hover text-white py-3 px-4 rounded-lg transition-colors mb-6"
         >
           <ExternalLink className="w-5 h-5" />
           Get Access Key from Tamago Labs
-        </button>
+        </button> */}
 
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
@@ -107,7 +107,7 @@ const AccessKeyForm: React.FC<AccessKeyFormProps> = ({ onAuthenticate, onValidat
                     ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                     : 'border-border focus:border-accent focus:ring-accent'
                 }`}
-                placeholder="tamago-your-access-key-here"
+                placeholder="your-access-key-here"
                 required
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -150,10 +150,7 @@ const AccessKeyForm: React.FC<AccessKeyFormProps> = ({ onAuthenticate, onValidat
           <div className="mb-4 p-4 bg-gray-800 rounded-lg">
             <p className="text-xs font-medium text-accent mb-2">Demo Access Keys:</p>
             <div className="text-xs text-text-muted space-y-1 font-mono">
-              <div>🚀 tamago-demo-key-123 (Pro - 1000 credits)</div>
-              <div>💼 tamago-pro-key-789 (Pro - 1000 credits)</div>
-              <div>🏢 tamago-enterprise-key-abc (Enterprise - 5000 credits)</div>
-              <div>🆓 tamago-free-key-456 (Free - 100 credits)</div>
+              <div>🚀 butler-demo (Pro - 1000 credits)</div>
             </div>
           </div>
           
@@ -166,10 +163,6 @@ const AccessKeyForm: React.FC<AccessKeyFormProps> = ({ onAuthenticate, onValidat
               <li>Copy and paste the key here to authenticate</li>
             </ol>
           </div>
-          
-          <p className="text-xs text-text-muted text-center mt-4">
-            Your access key is stored securely and only used to authenticate with Tamago Labs services.
-          </p>
         </div>
       </div>
     </div>

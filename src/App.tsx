@@ -6,8 +6,7 @@ import RightPanel from './components/RightPanel';
 import ToolPalette from './components/ToolPalette';
 import StatusBar from './components/StatusBar';
 import MenuBar from './components/MenuBar';
-import WelcomePage from './components/WelcomePage';
-import AuthForm from './components/auth/AuthForm';
+import WelcomePage from './components/WelcomePage'; 
 import AccessKeyForm from './components/auth/AccessKeyForm';
 import { NotificationContainer, useNotifications } from './components/ui/Notifications';
 import { useFileManager } from './hooks/useFileManager';
@@ -37,7 +36,7 @@ function App() {
   const [showAuth, setShowAuth] = useState(false);
 
   // Authentication Hook
-  const { user, isAuthenticated, authenticateWithAccessKey, validateAccessKey, logout, hasAIAccess, useAICredit, refreshCredits } = useAuth();
+  const { user, isAuthenticated, authenticateWithAccessKey, validateAccessKey, logout, hasAIAccess, useAICredit, refreshCredits, claudeService } = useAuth();
 
   // Notifications Hook
   const { notifications, removeNotification, success, error, warning, info } = useNotifications();
@@ -232,8 +231,8 @@ function App() {
     try {
       await authenticateWithAccessKey(accessKey);
       setShowAuth(false);
-      success('Welcome!', 'Successfully authenticated with Tamago Labs.');
-    } catch (error) {
+      success('Welcome!', 'Successfully authenticated to Butler managed service');
+    } catch (error: any) {
       console.error('Authentication failed:', error);
       // Error handling is done in the authenticateWithAccessKey function
     }
@@ -260,7 +259,7 @@ function App() {
         success('Credits Refreshed', `Your AI credits have been refreshed to ${newCredits}.`);
         return newCredits;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to refresh credits:', error);
       error('Refresh Failed', 'Could not refresh credits. Please try again later.');
     }
@@ -580,6 +579,7 @@ function App() {
                   onMCPAction={handleMCPAction}
                   isAuthenticated={isAuthenticated}
                   user={user}
+                  claudeService={claudeService}
                   onShowAuth={() => setShowAuth(true)}
                   onLogout={handleLogout}
                   onRefreshCredits={handleRefreshCredits}

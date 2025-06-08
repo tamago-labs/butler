@@ -1,4 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
+import { ClaudeService } from '../services/claudeService';
+
+const API_KEY = "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"
 
 export interface User {
   id: string;
@@ -9,6 +12,7 @@ export interface User {
   aiCredits: number;
   accessKey?: string;
   organization?: string;
+  claudeApiKey?: string; // Add Claude API key
 }
 
 interface AccessKeyResponse {
@@ -22,12 +26,14 @@ interface AccessKeyResponse {
   plan: 'free' | 'pro' | 'enterprise';
   aiCredits: number;
   accessKey: string;
+  claudeApiKey?: string; // Claude API key from Tamago Labs
 }
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [claudeService, setClaudeService] = useState<ClaudeService | null>(null);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -39,6 +45,12 @@ export const useAuth = () => {
           const userData = JSON.parse(storedUser);
           setUser({ ...userData, accessKey: storedAccessKey });
           setIsAuthenticated(true);
+
+          // Initialize Claude service if API key is available
+          if (userData.claudeApiKey) {
+            const service = new ClaudeService(userData.claudeApiKey);
+            setClaudeService(service);
+          }
         }
       } catch (error) {
         console.error('Error parsing stored user data:', error);
@@ -50,15 +62,16 @@ export const useAuth = () => {
     checkExistingSession();
   }, []);
 
+
   const authenticateWithAccessKey = useCallback(async (accessKey: string) => {
     setIsLoading(true);
-    
+
     try {
-      // Simulate API call to tamagolabs.com
+      // Simulate API call to tamagolabs.com that returns Claude API key
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock access key validation
-      if (accessKey === 'tamago-demo-key-123') {
+
+      // Mock access key validation with Claude API key
+      if (accessKey === 'butler-demo') {
         const response: AccessKeyResponse = {
           user: {
             id: 'user-demo',
@@ -69,16 +82,31 @@ export const useAuth = () => {
           },
           plan: 'pro',
           aiCredits: 1000,
-          accessKey
+          accessKey,
+          claudeApiKey: API_KEY || 'demo-claude-key' // In real app, this comes from your backend
         };
-        
+
         const userData: User = {
           ...response.user,
           plan: response.plan,
           aiCredits: response.aiCredits,
-          accessKey: response.accessKey
+          accessKey: response.accessKey,
+          claudeApiKey: response.claudeApiKey
         };
-        
+
+        // Initialize Claude service
+        if (response.claudeApiKey && response.claudeApiKey !== 'demo-claude-key') {
+          const service = new ClaudeService(response.claudeApiKey);
+
+          // Test the connection
+          const isConnected = await service.testConnection();
+          if (isConnected) {
+            setClaudeService(service);
+          } else {
+            throw new Error('Failed to connect to Claude API');
+          }
+        }
+
         setUser(userData);
         setIsAuthenticated(true);
         localStorage.setItem('butler_user', JSON.stringify({
@@ -86,44 +114,14 @@ export const useAuth = () => {
           accessKey: undefined // Don't store access key in user object
         }));
         localStorage.setItem('butler_access_key', accessKey);
-      } else if (accessKey.startsWith('tamago-')) {
-        // Simulate different access key types
-        const isEnterprise = accessKey.includes('enterprise');
-        const isPro = accessKey.includes('pro');
-        
-        const response: AccessKeyResponse = {
-          user: {
-            id: 'user-' + Date.now(),
-            name: isPro || isEnterprise ? 'Pro User' : 'Free User',
-            email: `user@tamagolabs.com`,
-            organization: 'Tamago Labs'
-          },
-          plan: isEnterprise ? 'enterprise' : isPro ? 'pro' : 'free',
-          aiCredits: isEnterprise ? 5000 : isPro ? 1000 : 100,
-          accessKey
-        };
-        
-        const userData: User = {
-          ...response.user,
-          plan: response.plan,
-          aiCredits: response.aiCredits,
-          accessKey: response.accessKey
-        };
-        
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('butler_user', JSON.stringify({
-          ...userData,
-          accessKey: undefined
-        }));
-        localStorage.setItem('butler_access_key', accessKey);
+
       } else {
         throw new Error('Invalid access key');
       }
-      
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Access key authentication failed:', error);
-      throw new Error('Invalid access key. Please get a valid access key from tamagolabs.com');
+      throw new Error(`Invalid access key. Please get a valid access key from tamagolabs.com.`);
     } finally {
       setIsLoading(false);
     }
@@ -131,10 +129,9 @@ export const useAuth = () => {
 
   const validateAccessKey = useCallback(async (accessKey: string): Promise<boolean> => {
     try {
-      // Simulate API call to validate access key format
       if (!accessKey.trim()) return false;
-      if (!accessKey.startsWith('tamago-')) return false;
-      if (accessKey.length < 16) return false;
+      // if (!accessKey.startsWith('tamago-')) return false;
+      // if (accessKey.length < 16) return false;
       return true;
     } catch {
       return false;
@@ -144,6 +141,7 @@ export const useAuth = () => {
   const logout = useCallback(() => {
     setUser(null);
     setIsAuthenticated(false);
+    setClaudeService(null);
     localStorage.removeItem('butler_user');
     localStorage.removeItem('butler_access_key');
   }, []);
@@ -154,22 +152,21 @@ export const useAuth = () => {
       setUser(updatedUser);
       localStorage.setItem('butler_user', JSON.stringify({
         ...updatedUser,
-        accessKey: undefined // Don't store access key in user object
+        accessKey: undefined
       }));
     }
   }, [user]);
 
   const refreshCredits = useCallback(async () => {
     if (!user?.accessKey) return;
-    
+
     try {
       // Simulate API call to refresh credits from tamagolabs.com
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock credit refresh based on plan
-      const newCredits = user.plan === 'enterprise' ? 5000 : 
-                        user.plan === 'pro' ? 1000 : 100;
-      
+
+      const newCredits = user.plan === 'enterprise' ? 5000 :
+        user.plan === 'pro' ? 1000 : 100;
+
       updateUser({ aiCredits: newCredits });
       return newCredits;
     } catch (error) {
@@ -187,16 +184,17 @@ export const useAuth = () => {
   }, [user, updateUser]);
 
   const hasAIAccess = useCallback(() => {
-    if (!isAuthenticated || !user) return false;
-    
+    if (!isAuthenticated || !user || !claudeService) return false;
+
     // Pro and enterprise users have unlimited access
     if (user.plan === 'pro' || user.plan === 'enterprise') {
       return true;
     }
-    
+
     // Free users need credits
     return user.aiCredits > 0;
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, claudeService]);
+
 
   const addAICredits = useCallback((credits: number) => {
     if (user) {
@@ -207,9 +205,9 @@ export const useAuth = () => {
   const upgradePlan = useCallback((newPlan: 'pro' | 'enterprise') => {
     if (user) {
       const bonusCredits = newPlan === 'pro' ? 1000 : 5000;
-      updateUser({ 
-        plan: newPlan, 
-        aiCredits: user.aiCredits + bonusCredits 
+      updateUser({
+        plan: newPlan,
+        aiCredits: user.aiCredits + bonusCredits
       });
     }
   }, [user, updateUser]);
@@ -219,7 +217,7 @@ export const useAuth = () => {
     user,
     isAuthenticated,
     isLoading,
-    
+    claudeService, // Add Claude service to return 
     // Actions
     authenticateWithAccessKey,
     validateAccessKey,
@@ -229,7 +227,6 @@ export const useAuth = () => {
     addAICredits,
     upgradePlan,
     refreshCredits,
-    
     // Computed
     hasAIAccess
   };

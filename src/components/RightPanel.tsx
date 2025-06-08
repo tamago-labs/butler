@@ -1,3 +1,4 @@
+// src/components/RightPanel.tsx - Updated to pass Claude service
 import React, { useState } from 'react';
 import { 
   Bot, 
@@ -11,7 +12,7 @@ import Settings from './Settings';
 import type { ChatMessage, MCPServer } from '../App';
 import type { FileTab } from '../hooks/useFileManager';
 import type { User } from '../hooks/useAuth';
-
+import type { ClaudeService } from '../services/claudeService';
 
 interface RightPanelProps {
   chatHistory: ChatMessage[];
@@ -21,6 +22,7 @@ interface RightPanelProps {
   onMCPAction: (serverName: string, action: 'start' | 'stop') => void;
   isAuthenticated: boolean;
   user: User | null;
+  claudeService: ClaudeService | null; // Add Claude service prop
   onShowAuth?: () => void;
   onLogout?: () => void;
   onRefreshCredits?: () => Promise<number | void>;
@@ -36,16 +38,35 @@ const RightPanel: React.FC<RightPanelProps> = ({
   onMCPAction,
   isAuthenticated,
   user,
+  claudeService, // Add Claude service
   onShowAuth,
   onLogout,
   onRefreshCredits
 }) => {
+
+  
+
   const [activeTab, setActiveTab] = useState<RightPanelTab>('ai');
 
   const tabs = [
-    { id: 'ai' as const, icon: Bot, label: 'AI Assistant', count: chatHistory.length },
-    { id: 'mcp' as const, icon: Terminal, label: 'MCP Tools', count: mcpServers.filter(s => s.status === 'running').length },
-    { id: 'settings' as const, icon: SettingsIcon, label: 'Settings' }
+    { 
+      id: 'ai' as const, 
+      icon: Bot, 
+      label: 'Claude AI', 
+      count: chatHistory.length,
+      indicator: claudeService ? 'connected' : 'disconnected'
+    },
+    { 
+      id: 'mcp' as const, 
+      icon: Terminal, 
+      label: 'MCP Tools', 
+      count: mcpServers.filter(s => s.status === 'running').length 
+    },
+    { 
+      id: 'settings' as const, 
+      icon: SettingsIcon, 
+      label: 'Settings' 
+    }
   ];
 
   const renderTabContent = () => {
@@ -57,6 +78,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
             onSendMessage={onSendMessage}
             currentFile={currentFile}
             isAuthenticated={isAuthenticated}
+            claudeService={claudeService} // Pass Claude service
             onShowAuth={onShowAuth}
           />
         );
@@ -93,7 +115,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 relative ${
                 activeTab === tab.id
                   ? 'text-accent border-accent bg-sidebar-bg'
                   : 'text-text-muted border-transparent hover:text-text-primary hover:bg-gray-700'
@@ -102,6 +124,15 @@ const RightPanel: React.FC<RightPanelProps> = ({
             >
               <tab.icon className="w-4 h-4" />
               <span className="hidden sm:inline">{tab.label}</span>
+              
+              {/* Connection indicator for AI tab */}
+              {tab.id === 'ai' && tab.indicator && (
+                <div className={`w-2 h-2 rounded-full ${
+                  tab.indicator === 'connected' ? 'bg-green-400' : 'bg-red-400'
+                }`} />
+              )}
+              
+              {/* Count badge */}
               {tab.count !== undefined && tab.count > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   activeTab === tab.id 
