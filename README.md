@@ -21,7 +21,7 @@ A lightweight desktop MCP client powered by Rust to streamline Web3 development 
 
 ```bash
 # Clone repository
-git clone https://github.com/pisuthd/butler.git
+git clone https://github.com/tamago-labs/butler.git
 cd butler
 
 # Install dependencies
