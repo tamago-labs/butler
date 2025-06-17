@@ -12,9 +12,7 @@ import { NotificationContainer, useNotifications } from './components/ui/Notific
 import { useFileManager } from './hooks/useFileManager';
 import { useAuth } from './hooks/useAuth';
 import { exit } from '@tauri-apps/plugin-process';
-import { message } from '@tauri-apps/plugin-dialog';
 import { mcpService } from './services/mcpService';
-// import type { FileTab } from './hooks/useFileManager';
 
 
 export interface ChatMessage {
@@ -68,7 +66,6 @@ function App() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
- 
 
   const handleEditorChange = useCallback((value: string) => {
     if (activeFileId) {
@@ -123,7 +120,7 @@ function App() {
   const handleCloseFile = useCallback((fileId: string) => {
     closeFile(fileId);
   }, [closeFile]);
- 
+
   const handleSendMessage = useCallback(async (message: string) => {
 
     // Check if user has AI access
@@ -157,7 +154,7 @@ function App() {
       warning('No AI Credits', 'You have run out of AI credits. Please upgrade your plan for unlimited access.');
       return;
     }
-  
+
     // Add user message to chat history
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}-user`,
@@ -167,7 +164,7 @@ function App() {
     };
 
     setChatHistory(prev => [...prev, userMessage]);
- 
+
     // Add initial AI message that we'll update with streaming content
     const aiMessageId = `msg-${Date.now()}-ai`;
     const initialAIMessage: ChatMessage = {
@@ -182,11 +179,9 @@ function App() {
       let accumulatedResponse = '';
 
       // Use Claude's streaming API for real-time responses
-      const stream = claudeService.streamAnalyzeCode(
-        currentFile.content,
-        currentFile.language,
-        message,
-        currentFile.name
+      const stream = claudeService.streamChatWithHistory(
+        chatHistory,           // ← Pass full conversation history
+        message              // ← Current message
       );
 
       // Process the streaming response
@@ -235,79 +230,7 @@ function App() {
       // Show notification with more details for debugging
       error('AI Error', 'Failed to get AI response. Check console for details.');
     }
-  }, [currentFile, hasAIAccess, useAICredit, claudeService, info, warning, error, chatHistory, setChatHistory]);
-
-  // Real Claude quick actions helper
-  const handleQuickAIAction = useCallback(async (actionType: 'analyze' | 'debug' | 'explain' | 'optimize') => {
-    if (!claudeService) {
-      error('AI Unavailable', 'Claude AI service is not available.');
-      return;
-    }
-
-    if (!currentFile.content.trim()) {
-      info('No Code to Analyze', 'Please add some code to the current file first.');
-      return;
-    }
-
-    try {
-      let aiResponse = '';
-
-      // Use Claude's specialized methods for different actions
-      switch (actionType) {
-        case 'analyze':
-          aiResponse = await claudeService.analyzeCode(
-            currentFile.content,
-            currentFile.language,
-            "Please analyze this code and provide insights on its structure, potential improvements, and best practices. You can use MCP tools to explore the project structure if needed.",
-            currentFile.name
-          );
-          break;
-
-        case 'debug':
-          aiResponse = await claudeService.findBugs(
-            currentFile.content,
-            currentFile.language,
-            currentFile.name
-          );
-          break;
-
-        case 'explain':
-          aiResponse = await claudeService.explainCode(
-            currentFile.content,
-            currentFile.language,
-            currentFile.name
-          );
-          break;
-
-        case 'optimize':
-          aiResponse = await claudeService.optimizeCode(
-            currentFile.content,
-            currentFile.language,
-            currentFile.name
-          );
-          break;
-      }
-
-      // Add the AI response to chat history
-      const aiMessage: ChatMessage = {
-        id: `quick-action-${Date.now()}`,
-        sender: 'assistant',
-        content: aiResponse,
-        timestamp: new Date()
-      };
-      setChatHistory(prev => [...prev, aiMessage]);
-
-      // Use a credit for quick actions too
-      useAICredit();
-
-    } catch (error: any) {
-      console.error(`Quick action ${actionType} failed:`, error);
-      error('Quick Action Failed', `Failed to ${actionType} code. Please try again.`);
-    }
-  }, [claudeService, currentFile, useAICredit, error, info, setChatHistory]);
-
-  // MCP actions are now handled by the MCP service and hook
-  // const handleMCPAction = useCallback(...);
+  }, [hasAIAccess, useAICredit, claudeService, info, warning, error, chatHistory, setChatHistory]);
 
   // Toggle right panel for more editor space
   const toggleRightPanel = useCallback(async () => {
@@ -381,13 +304,6 @@ function App() {
       case 'toggle-right-panel':
         await toggleRightPanel();
         break;
-      case 'analyze-code':
-        if (!isRightPanelVisible) {
-          setIsRightPanelVisible(true);
-        }
-        // Use real Claude instead of mock
-        handleQuickAIAction('analyze');
-        break;
       case 'command-palette':
         setIsToolPaletteOpen(true);
         break;
@@ -395,7 +311,7 @@ function App() {
         handleExit();
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleQuickAIAction, isRightPanelVisible, toggleRightPanel]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, isRightPanelVisible, toggleRightPanel]);
 
   const handleToolCommand = useCallback(async (command: string) => {
     switch (command) {
@@ -411,33 +327,6 @@ function App() {
       case 'Toggle Right Panel':
         await toggleRightPanel();
         break;
-      case 'Analyze Code':
-        if (!isRightPanelVisible) {
-          setIsRightPanelVisible(true);
-        }
-        handleQuickAIAction('analyze');
-        break;
-      case 'Find Issues':
-        if (!isRightPanelVisible) {
-          setIsRightPanelVisible(true);
-        }
-        handleQuickAIAction('debug');
-        break;
-      case 'Explain Code':
-        if (!isRightPanelVisible) {
-          setIsRightPanelVisible(true);
-        }
-        handleQuickAIAction('explain');
-        break;
-      case 'Optimize Code':
-        if (!isRightPanelVisible) {
-          setIsRightPanelVisible(true);
-        }
-        handleQuickAIAction('optimize');
-        break;
-      case 'MCP Tools':
-        // MCP is now in right panel, no action needed
-        break;
       case 'Search Files':
         // Search is now integrated in file explorer
         break;
@@ -445,7 +334,7 @@ function App() {
         // Removed from sidebar
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleQuickAIAction, isRightPanelVisible, toggleRightPanel]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, isRightPanelVisible, toggleRightPanel]);
 
   // Global keyboard shortcuts
   useEffect(() => {
