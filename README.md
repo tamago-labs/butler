@@ -1,15 +1,18 @@
-# Butler 🤖
+# Butler 🛎️
 
-A lightweight desktop MCP client powered by Rust to streamline Web3 development workflows
+Butler is a lightweight MCP desktop client built in Rust using the Tauri framework. It’s similar to Cursor.ai but designed specifically for Web3 development by cutting unnecessary background tasks and extensions to achieve a minimal memory footprint. This allows MCP tools to fully support smart contract workflows and multi-chain data interactions. 
 
 ## Features
 
-- 🤖 **Claude AI Integration** - Real-time code assistance with streaming responses
-- 🔗 **Blockchain Support** - Multi-chain data access via Nodit APIs (Ethereum, Polygon, Arbitrum, Base)
-- 🛠️ **MCP Protocol** - Extensible tool ecosystem for enhanced AI capabilities
-- 📁 **File Management** - Full project workspace with syntax highlighting
-- ⚡ **Low Memory** - Tauri-based desktop app with minimal footprint
-- 🎨 **Modern UI** - VS Code-inspired interface with dark theme
+- **Claude AI Integration** - Real-time AI code assistance with streaming responses, leveraging available MCP tools for various use cases.
+
+- **Blockchain Support** - Natural language access to multi-chain data (Ethereum, Polygon, Arbitrum, Base) via Nodit APIs via MCPs.
+
+- **MCP Protocol Integration** - Extensible ecosystem for AI tools that support many use cases from smart contract development, testing, and auditing to DeFi portfolio management and protocol governance.
+
+- **File Management** - Full project workspace with syntax highlighting, file navigation, and editing capabilities.
+
+- **Lightweight & Fast** - Rust-based desktop application built with Tauri optimized for low memory usage and fast performance.
 
 ## Quick Start
 
