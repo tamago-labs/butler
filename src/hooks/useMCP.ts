@@ -1,156 +1,257 @@
-// import { useState, useCallback, useEffect } from 'react';
-// // import { invoke } from '@tauri-apps/api';
+import { useState, useEffect, useCallback } from 'react';
+import { 
+  mcpService, 
+  MCPServerInstance, 
+  MCPServerConfig, 
+  MCPTool, 
+  MCPResource,
+  MCPServerEvent 
+} from '../services/mcpService';
 
-// export interface MCPServer {
-//   name: string;
-//   command: string;
-//   args: string[];
-//   status: 'running' | 'stopped' | 'error' | 'starting';
-// }
+export interface UseMCPReturn {
+  servers: MCPServerInstance[];
+  runningServers: MCPServerInstance[];
+  availableTools: { serverName: string; tools: MCPTool[] }[];
+  availableResources: { serverName: string; resources: MCPResource[] }[];
+  serverTemplates: MCPServerConfig[];
+  isLoading: boolean;
+  error: string | null;
+  
+  // Server management
+  startServer: (serverName: string) => Promise<boolean>;
+  stopServer: (serverName: string) => Promise<boolean>;
+  restartServer: (serverName: string) => Promise<boolean>;
+  addServer: (config: MCPServerConfig) => void;
+  removeServer: (serverName: string) => void;
+  updateServerConfig: (serverName: string, config: Partial<MCPServerConfig>) => void;
+  
+  // Tool execution
+  callTool: (serverName: string, toolName: string, arguments_: Record<string, any>) => Promise<any>;
+  readResource: (serverName: string, uri: string) => Promise<any>;
+  
+  // Server status
+  getServerStatus: (serverName: string) => 'stopped' | 'starting' | 'running' | 'error';
+  getServerError: (serverName: string) => string | undefined;
+  
+  // Utilities
+  refreshServers: () => void;
+  clearError: () => void;
+}
 
-// export const useMCP = () => {
-//   const [servers, setServers] = useState<MCPServer[]>([]);
-//   const [isLoading, setIsLoading] = useState(false);
+export function useMCP(): UseMCPReturn {
+  const [servers, setServers] = useState<MCPServerInstance[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-//   const loadServers = useCallback(async () => {
-//     try {
-//       setIsLoading(true);
-//       // const serverList = await invoke<MCPServer[]>('list_mcp_servers');
-//       // setServers(serverList);
-//     } catch (error) {
-//       console.error('Failed to load MCP servers:', error);
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   }, []);
+  // Refresh servers from service
+  const refreshServers = useCallback(() => {
+    setServers(mcpService.getServers());
+  }, []);
 
-//   const startServer = useCallback(async (name: string) => {
-//     try {
-//       const server = servers.find(s => s.name === name);
-//       if (!server) throw new Error('Server not found');
+  // Initialize and set up event listeners
+  useEffect(() => {
+    refreshServers();
 
-//       // Update status to starting
-//       setServers(prev => prev.map(s => 
-//         s.name === name ? { ...s, status: 'starting' } : s
-//       ));
+    // Set up event listeners
+    const handleServerStatusChanged = (event: MCPServerEvent) => {
+      refreshServers();
+      if (event.data.status === 'error') {
+        setError(`Server ${event.data.serverName}: ${event.data.error}`);
+      }
+    };
 
-//       await invoke('start_mcp_server', {
-//         name: server.name,
-//         command: server.command,
-//         args: server.args
-//       });
+    const handleServerStarted = (event: MCPServerEvent) => {
+      refreshServers();
+      console.log(`MCP Server ${event.data.serverName} started with ${event.data.tools.length} tools`);
+    };
 
-//       // Update status to running
-//       setServers(prev => prev.map(s => 
-//         s.name === name ? { ...s, status: 'running' } : s
-//       ));
-//     } catch (error) {
-//       console.error(`Failed to start MCP server ${name}:`, error);
-      
-//       // Update status to error
-//       setServers(prev => prev.map(s => 
-//         s.name === name ? { ...s, status: 'error' } : s
-//       ));
-//     }
-//   }, [servers]);
+    const handleServerStopped = (event: MCPServerEvent) => {
+      refreshServers();
+      console.log(`MCP Server ${event.data.serverName} stopped`);
+    };
 
-//   const stopServer = useCallback(async (name: string) => {
-//     try {
-//       await invoke('stop_mcp_server', { name });
-      
-//       setServers(prev => prev.map(s => 
-//         s.name === name ? { ...s, status: 'stopped' } : s
-//       ));
-//     } catch (error) {
-//       console.error(`Failed to stop MCP server ${name}:`, error);
-//     }
-//   }, []);
+    const handleServerAdded = (event: MCPServerEvent) => {
+      refreshServers();
+    };
 
-//   const refreshServers = useCallback(async () => {
-//     await loadServers();
-//   }, [loadServers]);
+    const handleServerRemoved = (event: MCPServerEvent) => {
+      refreshServers();
+    };
 
-//   const addServer = useCallback(async (server: Omit<MCPServer, 'status'>) => {
-//     const newServer: MCPServer = {
-//       ...server,
-//       status: 'stopped'
-//     };
+    const handleToolCalled = (event: MCPServerEvent) => {
+      console.log(`Tool ${event.data.toolName} called on ${event.data.serverName}:`, event.data.result);
+    };
+
+    const handleToolError = (event: MCPServerEvent) => {
+      setError(`Tool execution failed: ${event.data.error}`);
+    };
+
+    // Add event listeners
+    mcpService.addEventListener('serverStatusChanged', handleServerStatusChanged);
+    mcpService.addEventListener('serverStarted', handleServerStarted);
+    mcpService.addEventListener('serverStopped', handleServerStopped);
+    mcpService.addEventListener('serverAdded', handleServerAdded);
+    mcpService.addEventListener('serverRemoved', handleServerRemoved);
+    mcpService.addEventListener('toolCalled', handleToolCalled);
+    mcpService.addEventListener('toolError', handleToolError);
+
+    // Cleanup event listeners
+    return () => {
+      mcpService.removeEventListener('serverStatusChanged', handleServerStatusChanged);
+      mcpService.removeEventListener('serverStarted', handleServerStarted);
+      mcpService.removeEventListener('serverStopped', handleServerStopped);
+      mcpService.removeEventListener('serverAdded', handleServerAdded);
+      mcpService.removeEventListener('serverRemoved', handleServerRemoved);
+      mcpService.removeEventListener('toolCalled', handleToolCalled);
+      mcpService.removeEventListener('toolError', handleToolError);
+    };
+  }, [refreshServers]);
+
+  // Server management functions
+  const startServer = useCallback(async (serverName: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await mcpService.startServer(serverName);
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to start server ${serverName}: ${errorMessage}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const stopServer = useCallback(async (serverName: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await mcpService.stopServer(serverName);
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to stop server ${serverName}: ${errorMessage}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const restartServer = useCallback(async (serverName: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await mcpService.restartServer(serverName);
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to restart server ${serverName}: ${errorMessage}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const addServer = useCallback((config: MCPServerConfig) => {
+    try {
+      mcpService.addServer(config);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to add server: ${errorMessage}`);
+    }
+  }, []);
+
+  const removeServer = useCallback((serverName: string) => {
+    try {
+      mcpService.removeServer(serverName);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to remove server: ${errorMessage}`);
+    }
+  }, []);
+
+  const updateServerConfig = useCallback((serverName: string, config: Partial<MCPServerConfig>) => {
+    try {
+      mcpService.updateServerConfig(serverName, config);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to update server config: ${errorMessage}`);
+    }
+  }, []);
+
+  // Tool execution functions
+  const callTool = useCallback(async (serverName: string, toolName: string, arguments_: Record<string, any>): Promise<any> => {
+    setError(null);
+    try {
+      return await mcpService.callTool(serverName, toolName, arguments_);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Tool execution failed: ${errorMessage}`);
+      throw err;
+    }
+  }, []);
+
+  const readResource = useCallback(async (serverName: string, uri: string): Promise<any> => {
+    setError(null);
+    try {
+      return await mcpService.readResource(serverName, uri);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Resource read failed: ${errorMessage}`);
+      throw err;
+    }
+  }, []);
+
+  // Status functions
+  const getServerStatus = useCallback((serverName: string): 'stopped' | 'starting' | 'running' | 'error' => {
+    const server = mcpService.getServer(serverName);
+    return server?.status || 'stopped';
+  }, [servers]);
+
+  const getServerError = useCallback((serverName: string): string | undefined => {
+    const server = mcpService.getServer(serverName);
+    return server?.error;
+  }, [servers]);
+
+  // Utility functions
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // Computed values
+  const runningServers = mcpService.getRunningServers();
+  const availableTools = mcpService.getAvailableTools();
+  const availableResources = mcpService.getAvailableResources();
+  const serverTemplates = mcpService.getServerTemplates();
+
+  return {
+    servers,
+    runningServers,
+    availableTools,
+    availableResources,
+    serverTemplates,
+    isLoading,
+    error,
     
-//     setServers(prev => [...prev, newServer]);
+    // Server management
+    startServer,
+    stopServer,
+    restartServer,
+    addServer,
+    removeServer,
+    updateServerConfig,
     
-//     // In a real implementation, you might want to persist this to a config file
-//     // await invoke('add_mcp_server', { server: newServer });
-//   }, []);
-
-//   const removeServer = useCallback(async (name: string) => {
-//     setServers(prev => prev.filter(s => s.name !== name));
+    // Tool execution
+    callTool,
+    readResource,
     
-//     // In a real implementation, you might want to persist this change
-//     // await invoke('remove_mcp_server', { name });
-//   }, []);
-
-//   const getServerStatus = useCallback((name: string) => {
-//     const server = servers.find(s => s.name === name);
-//     return server?.status || 'stopped';
-//   }, [servers]);
-
-//   const getRunningServers = useCallback(() => {
-//     return servers.filter(s => s.status === 'running');
-//   }, [servers]);
-
-//   const executeServerCommand = useCallback(async (
-//     serverName: string, 
-//     command: string, 
-//     args: Record<string, any> = {}
-//   ) => {
-//     try {
-//       const server = servers.find(s => s.name === serverName);
-//       if (!server || server.status !== 'running') {
-//         throw new Error(`Server ${serverName} is not running`);
-//       }
-
-//       // This would be implemented to send commands to the MCP server
-//       // The actual implementation would depend on the MCP protocol
-//       const result = await invoke('execute_mcp_command', {
-//         serverName,
-//         command,
-//         args
-//       });
-
-//       return result;
-//     } catch (error) {
-//       console.error(`Failed to execute command on ${serverName}:`, error);
-//       throw error;
-//     }
-//   }, [servers]);
-
-//   const getAvailableTools = useCallback(async (serverName: string) => {
-//     try {
-//       const tools = await invoke<string[]>('get_mcp_tools', { serverName });
-//       return tools;
-//     } catch (error) {
-//       console.error(`Failed to get tools for ${serverName}:`, error);
-//       return [];
-//     }
-//   }, []);
-
-//   // Load servers on mount
-//   useEffect(() => {
-//     loadServers();
-//   }, [loadServers]);
-
-//   return {
-//     servers,
-//     isLoading,
-//     startServer,
-//     stopServer,
-//     refreshServers,
-//     addServer,
-//     removeServer,
-//     getServerStatus,
-//     getRunningServers,
-//     executeServerCommand,
-//     getAvailableTools,
-//     loadServers
-//   };
-// };
+    // Server status
+    getServerStatus,
+    getServerError,
+    
+    // Utilities
+    refreshServers,
+    clearError
+  };
+}

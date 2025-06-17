@@ -14,81 +14,74 @@ import {
   FileText,
   GitBranch,
   Globe,
-  Server
+  Server,
+  X,
+  Clock,
+  Wrench,
+  Book,
+  ArrowLeft,
+  Loader,
+  ExternalLink
 } from 'lucide-react';
-import type { MCPServer } from '../App';
+import { useMCP } from '../hooks/useMCP';
+import { MCPServerConfig } from '../services/mcpService';
 
 interface MCPPanelProps {
-  mcpServers: MCPServer[];
-  onMCPAction: (serverName: string, action: 'start' | 'stop') => void;
   isAuthenticated?: boolean;
   onShowAuth?: () => void;
 }
 
-interface MCPServerTemplate {
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  command: string;
-  category: 'filesystem' | 'database' | 'web' | 'git' | 'custom';
-}
-
 const MCPPanel: React.FC<MCPPanelProps> = ({
-  mcpServers,
-  onMCPAction,
   isAuthenticated = false,
   onShowAuth
 }) => {
-  const [activeSection, setActiveSection] = useState<'servers' | 'templates' | 'logs'>('servers');
+  const {
+    servers,
+    runningServers,
+    availableTools,
+    availableResources,
+    serverTemplates,
+    isLoading,
+    error,
+    startServer,
+    stopServer,
+    restartServer,
+    addServer,
+    removeServer,
+    refreshServers,
+    clearError
+  } = useMCP();
+
+  const [activeSection, setActiveSection] = useState<'servers' | 'templates' | 'tools' | 'logs'>('servers');
   const [isAddingServer, setIsAddingServer] = useState(false);
+  const [customServerForm, setCustomServerForm] = useState<MCPServerConfig>({
+    name: '',
+    command: '',
+    args: [],
+    description: '',
+    category: 'custom'
+  });
+  const [selectedServer, setSelectedServer] = useState<string | null>(null);
 
-  const serverTemplates: MCPServerTemplate[] = [
-    {
-      name: 'Filesystem',
-      description: 'File system operations and navigation',
-      icon: <FileText className="w-5 h-5 text-blue-400" />,
-      command: 'mcp-server-filesystem',
-      category: 'filesystem'
-    },
-    {
-      name: 'Git',
-      description: 'Git repository management and operations',
-      icon: <GitBranch className="w-5 h-5 text-orange-400" />,
-      command: 'mcp-server-git',
-      category: 'git'
-    },
-    {
-      name: 'Database',
-      description: 'Database connections and queries',
-      icon: <Database className="w-5 h-5 text-green-400" />,
-      command: 'mcp-server-database',
-      category: 'database'
-    },
-    {
-      name: 'Web Search',
-      description: 'Web search and content retrieval',
-      icon: <Globe className="w-5 h-5 text-purple-400" />,
-      command: 'mcp-server-web',
-      category: 'web'
-    }
-  ];
-
-  const getServerIcon = (serverName: string) => {
+  const getServerIcon = (category: string) => {
     const iconMap: Record<string, React.ReactNode> = {
       'filesystem': <FileText className="w-4 h-4" />,
       'git': <GitBranch className="w-4 h-4" />,
       'database': <Database className="w-4 h-4" />,
       'web': <Globe className="w-4 h-4" />,
+      'custom': <Server className="w-4 h-4" />,
     };
-    return iconMap[serverName] || <Server className="w-4 h-4" />;
+    return iconMap[category] || <Server className="w-4 h-4" />;
   };
 
-  const getStatusColor = (status: MCPServer['status']) => {
+  const getStatusColor = (status: 'stopped' | 'starting' | 'running' | 'error') => {
     switch (status) {
       case 'running':
         return 'text-green-400';
       case 'error':
         return 'text-red-400';
+      case 'starting':
+        return 'text-yellow-400';
       case 'stopped':
         return 'text-gray-400';
       default:
@@ -96,12 +89,14 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
     }
   };
 
-  const getStatusIcon = (status: MCPServer['status']) => {
+  const getStatusIcon = (status: 'stopped' | 'starting' | 'running' | 'error') => {
     switch (status) {
       case 'running':
         return <CheckCircle className={`w-4 h-4 ${getStatusColor(status)}`} />;
       case 'error':
         return <AlertCircle className={`w-4 h-4 ${getStatusColor(status)}`} />;
+      case 'starting':
+        return <Loader className={`w-4 h-4 ${getStatusColor(status)} animate-spin`} />;
       case 'stopped':
         return <Square className={`w-4 h-4 ${getStatusColor(status)}`} />;
       default:
@@ -109,63 +104,137 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
     }
   };
 
+  const handleAddServerFromTemplate = (template: MCPServerConfig) => {
+    // If adding filesystem server and none exists, use root directory
+    if (template.category === 'filesystem' && !servers.find(s => s.config.category === 'filesystem')) {
+      const filesystemConfig: MCPServerConfig = {
+        ...template,
+        args: [...template.args, '/']
+      };
+      addServer(filesystemConfig);
+    } else {
+      addServer(template);
+    }
+    setActiveSection('servers');
+  };
+
+  const handleAddCustomServer = () => {
+    if (!customServerForm.name || !customServerForm.command) {
+      return;
+    }
+
+    const argsArray = customServerForm.command.includes(' ') 
+      ? customServerForm.command.split(' ').slice(1)
+      : [];
+    
+    const config: MCPServerConfig = {
+      ...customServerForm,
+      command: customServerForm.command.split(' ')[0],
+      args: argsArray
+    };
+
+    addServer(config);
+    setCustomServerForm({
+      name: '',
+      command: '',
+      args: [],
+      description: '',
+      category: 'custom'
+    });
+    setIsAddingServer(false);
+    setActiveSection('servers');
+  };
+
   const renderServers = () => (
     <div className="p-4 space-y-4">
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            <span className="text-sm text-red-300">{error}</span>
+          </div>
+          <button
+            onClick={clearError}
+            className="text-red-400 hover:text-red-300"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium text-text-primary">MCP Servers</h3>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsAddingServer(true)}
+            onClick={() => setActiveSection('templates')}
             className="p-2 hover:bg-gray-700 rounded transition-colors"
             title="Add Server"
           >
             <Plus className="w-4 h-4 text-accent" />
           </button>
           <button
+            onClick={refreshServers}
             className="p-2 hover:bg-gray-700 rounded transition-colors"
             title="Refresh"
+            disabled={isLoading}
           >
-            <RefreshCw className="w-4 h-4 text-text-muted" />
+            <RefreshCw className={`w-4 h-4 text-text-muted ${isLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       <div className="space-y-3">
-        {mcpServers.map((server) => (
+        {servers.map((server) => (
           <div
-            key={server.name}
+            key={server.config.name}
             className="bg-gray-700 rounded-lg p-4 hover:bg-gray-600 transition-colors"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {getServerIcon(server.name)}
+                {getServerIcon(server.config.category)}
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-text-primary capitalize">
-                      {server.name}
+                      {server.config.name}
                     </span>
                     {getStatusIcon(server.status)}
                   </div>
                   <div className={`text-xs ${getStatusColor(server.status)}`}>
                     {server.status.charAt(0).toUpperCase() + server.status.slice(1)}
+                    {server.error && ` - ${server.error}`}
+                  </div>
+                  <div className="text-xs text-text-muted">
+                    {server.config.description}
                   </div>
                 </div>
               </div>
               
               <div className="flex items-center gap-2">
+                {server.status === 'running' && (
+                  <span className="text-xs bg-green-900/30 text-green-300 px-2 py-1 rounded">
+                    {server.tools.length} tools
+                  </span>
+                )}
                 <button
+                  onClick={() => setSelectedServer(server.config.name)}
                   className="p-1 hover:bg-gray-600 rounded transition-colors"
-                  title="Settings"
+                  title="Server Details"
                 >
                   <Settings className="w-4 h-4 text-text-muted" />
                 </button>
                 <button
-                  onClick={() =>
-                    onMCPAction(
-                      server.name,
-                      server.status === 'running' ? 'stop' : 'start'
-                    )
-                  }
+                  onClick={() => removeServer(server.config.name)}
+                  className="p-1 hover:bg-red-600 rounded transition-colors"
+                  title="Remove Server"
+                >
+                  <Trash2 className="w-4 h-4 text-text-muted" />
+                </button>
+                <button
+                  onClick={() => {
+                    const action = server.status === 'running' ? stopServer : startServer;
+                    action(server.config.name);
+                  }}
                   className={`p-2 rounded transition-colors ${
                     server.status === 'running'
                       ? 'hover:bg-red-600 text-red-400'
@@ -173,9 +242,10 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
                   }`}
                   title={
                     server.status === 'running'
-                      ? `Stop ${server.name}`
-                      : `Start ${server.name}`
+                      ? `Stop ${server.config.name}`
+                      : `Start ${server.config.name}`
                   }
+                  disabled={isLoading || server.status === 'starting'}
                 >
                   {server.status === 'running' ? (
                     <Square className="w-4 h-4" />
@@ -186,18 +256,31 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
               </div>
             </div>
             
-            {server.status === 'running' && (
+            {server.status === 'running' && server.tools.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-600">
-                <div className="flex items-center gap-2 text-xs text-text-muted">
+                <div className="flex items-center gap-2 text-xs text-text-muted mb-2">
                   <Activity className="w-3 h-3" />
-                  <span>Active • Ready for commands</span>
+                  <span>Active • {server.tools.length} tools available</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {server.tools.slice(0, 3).map((tool) => (
+                    <span
+                      key={tool.name}
+                      className="text-xs bg-blue-900/30 text-blue-300 px-2 py-1 rounded"
+                    >
+                      {tool.name}
+                    </span>
+                  ))}
+                  {server.tools.length > 3 && (
+                    <span className="text-xs text-text-muted">+{server.tools.length - 3} more</span>
+                  )}
                 </div>
               </div>
             )}
           </div>
         ))}
 
-        {mcpServers.length === 0 && (
+        {servers.length === 0 && (
           <div className="text-center py-8">
             <Terminal className="w-12 h-12 mx-auto mb-4 text-text-muted" />
             <h4 className="text-sm font-medium text-text-primary mb-2">No MCP Servers</h4>
@@ -222,47 +305,198 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
         <h3 className="text-lg font-medium text-text-primary">Server Templates</h3>
         <button
           onClick={() => setActiveSection('servers')}
-          className="text-sm text-accent hover:text-accent-hover"
+          className="flex items-center gap-2 text-sm text-accent hover:text-accent-hover"
         >
+          <ArrowLeft className="w-4 h-4" />
           Back to Servers
         </button>
       </div>
 
       <div className="space-y-3">
-        {serverTemplates.map((template) => (
-          <div
-            key={template.name}
-            className="bg-gray-700 rounded-lg p-4 hover:bg-gray-600 transition-colors"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                {template.icon}
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-text-primary mb-1">
-                    {template.name}
-                  </h4>
-                  <p className="text-sm text-text-muted mb-2">
-                    {template.description}
-                  </p>
-                  <div className="text-xs text-text-muted">
-                    Command: <code className="bg-gray-800 px-1 rounded">{template.command}</code>
+        {serverTemplates.map((template) => {
+          const isInstalled = servers.some(s => s.config.name === template.name);
+          return (
+            <div
+              key={template.name}
+              className="bg-gray-700 rounded-lg p-4 hover:bg-gray-600 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  {getServerIcon(template.category)}
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-text-primary mb-1">
+                      {template.name}
+                      {isInstalled && (
+                        <span className="ml-2 text-xs bg-green-900/30 text-green-300 px-2 py-1 rounded">
+                          Installed
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-sm text-text-muted mb-2">
+                      {template.description}
+                    </p>
+                    <div className="text-xs text-text-muted">
+                      Command: <code className="bg-gray-800 px-1 rounded">{template.command} {template.args.join(' ')}</code>
+                    </div>
                   </div>
                 </div>
+                
+                <button
+                  className={`px-3 py-1 rounded transition-colors text-sm ${
+                    isInstalled
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      : 'bg-accent text-white hover:bg-accent-hover'
+                  }`}
+                  onClick={() => !isInstalled && handleAddServerFromTemplate(template)}
+                  disabled={isInstalled}
+                >
+                  {isInstalled ? 'Added' : 'Add'}
+                </button>
               </div>
-              
-              <button
-                className="px-3 py-1 bg-accent text-white rounded hover:bg-accent-hover transition-colors text-sm"
-                onClick={() => {
-                  console.log(`Add ${template.name} server`);
-                  setActiveSection('servers');
-                }}
-              >
-                Add
-              </button>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* Custom Server Form */}
+      <div className="border-t border-gray-600 pt-4">
+        <h4 className="text-sm font-medium text-text-primary mb-3">Add Custom Server</h4>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Server Name</label>
+            <input
+              type="text"
+              value={customServerForm.name}
+              onChange={(e) => setCustomServerForm(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-text-primary focus:border-accent focus:outline-none"
+              placeholder="my-custom-server"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Command & Args</label>
+            <input
+              type="text"
+              value={customServerForm.command}
+              onChange={(e) => setCustomServerForm(prev => ({ ...prev, command: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-text-primary focus:border-accent focus:outline-none"
+              placeholder="npx my-mcp-server --arg1 value1"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Description</label>
+            <input
+              type="text"
+              value={customServerForm.description}
+              onChange={(e) => setCustomServerForm(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-text-primary focus:border-accent focus:outline-none"
+              placeholder="Description of what this server does"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Category</label>
+            <select
+              value={customServerForm.category}
+              onChange={(e) => setCustomServerForm(prev => ({ ...prev, category: e.target.value as any }))}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-text-primary focus:border-accent focus:outline-none"
+            >
+              <option value="custom">Custom</option>
+              <option value="filesystem">Filesystem</option>
+              <option value="database">Database</option>
+              <option value="web">Web</option>
+              <option value="git">Git</option>
+            </select>
+          </div>
+          <button
+            onClick={handleAddCustomServer}
+            disabled={!customServerForm.name || !customServerForm.command}
+            className="w-full px-3 py-2 bg-accent text-white rounded hover:bg-accent-hover transition-colors text-sm disabled:bg-gray-600 disabled:cursor-not-allowed"
+          >
+            Add Custom Server
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTools = () => (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium text-text-primary">Available Tools</h3>
+        <button
+          onClick={() => setActiveSection('servers')}
+          className="flex items-center gap-2 text-sm text-accent hover:text-accent-hover"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Servers
+        </button>
+      </div>
+
+      {availableTools.length === 0 ? (
+        <div className="text-center py-8">
+          <Wrench className="w-12 h-12 mx-auto mb-4 text-text-muted" />
+          <h4 className="text-sm font-medium text-text-primary mb-2">No Tools Available</h4>
+          <p className="text-sm text-text-muted mb-4">
+            Start an MCP server to see available tools.
+          </p>
+          <button
+            onClick={() => setActiveSection('servers')}
+            className="px-4 py-2 bg-accent text-white rounded hover:bg-accent-hover transition-colors text-sm"
+          >
+            Manage Servers
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {availableTools.map(({ serverName, tools }) => (
+            <div key={serverName} className="bg-gray-700 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                {getServerIcon(servers.find(s => s.config.name === serverName)?.config.category || 'custom')}
+                <h4 className="text-sm font-medium text-text-primary capitalize">{serverName}</h4>
+                <span className="text-xs bg-blue-900/30 text-blue-300 px-2 py-1 rounded">
+                  {tools.length} tools
+                </span>
+              </div>
+              <div className="space-y-2">
+                {tools.map((tool) => (
+                  <div key={tool.name} className="bg-gray-800 rounded p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h5 className="text-sm font-medium text-text-primary mb-1">{tool.name}</h5>
+                        <p className="text-xs text-text-muted mb-2">{tool.description}</p>
+                        {tool.inputSchema && tool.inputSchema.properties && (
+                          <div className="text-xs text-text-muted">
+                            <span className="font-medium">Parameters:</span>
+                            <div className="mt-1 space-y-1">
+                              {Object.entries(tool.inputSchema.properties).map(([key, schema]: [string, any]) => (
+                                <div key={key} className="flex items-center gap-2">
+                                  <code className="bg-gray-700 px-1 rounded">{key}</code>
+                                  <span className="text-gray-400">({schema.type || 'any'})</span>
+                                  {tool.inputSchema.required?.includes(key) && (
+                                    <span className="text-red-400">*</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                        onClick={() => {
+                          // Tool execution would be handled here
+                          console.log(`Execute tool: ${tool.name} on ${serverName}`);
+                        }}
+                      >
+                        Execute
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -272,25 +506,49 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
         <h3 className="text-lg font-medium text-text-primary">Server Logs</h3>
         <button
           onClick={() => setActiveSection('servers')}
-          className="text-sm text-accent hover:text-accent-hover"
+          className="flex items-center gap-2 text-sm text-accent hover:text-accent-hover"
         >
+          <ArrowLeft className="w-4 h-4" />
           Back to Servers
         </button>
       </div>
 
       <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm space-y-2 max-h-96 overflow-y-auto">
-        <div className="text-green-400">[12:34:56] filesystem: Server started successfully</div>
-        <div className="text-blue-400">[12:34:57] filesystem: Listening on port 3001</div>
-        <div className="text-yellow-400">[12:35:02] git: Connection attempt failed</div>
-        <div className="text-red-400">[12:35:03] database: Authentication failed</div>
-        <div className="text-text-muted">[12:35:10] filesystem: Ready for commands</div>
+        {runningServers.length > 0 ? (
+          runningServers.map((server) => (
+            <div key={server.config.name}>
+              <div className="text-green-400">
+                [{new Date().toLocaleTimeString()}] {server.config.name}: Server running
+              </div>
+              <div className="text-blue-400">
+                [{new Date().toLocaleTimeString()}] {server.config.name}: {server.tools.length} tools loaded
+              </div>
+              {server.lastStarted && (
+                <div className="text-text-muted">
+                  [{server.lastStarted.toLocaleTimeString()}] {server.config.name}: Started successfully
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="text-text-muted text-center py-8">
+            No active servers to display logs for.
+          </div>
+        )}
+        
+        {servers.filter(s => s.status === 'error').map((server) => (
+          <div key={`error-${server.config.name}`} className="text-red-400">
+            [{new Date().toLocaleTimeString()}] {server.config.name}: Error - {server.error}
+          </div>
+        ))}
       </div>
     </div>
   );
 
   const sections = [
-    { id: 'servers' as const, label: 'Servers', count: mcpServers.length },
+    { id: 'servers' as const, label: 'Servers', count: servers.length },
     { id: 'templates' as const, label: 'Templates', count: serverTemplates.length },
+    { id: 'tools' as const, label: 'Tools', count: availableTools.reduce((acc, server) => acc + server.tools.length, 0) },
     { id: 'logs' as const, label: 'Logs' }
   ];
 
@@ -328,6 +586,7 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
       <div className="flex-1 overflow-y-auto">
         {activeSection === 'servers' && renderServers()}
         {activeSection === 'templates' && renderTemplates()}
+        {activeSection === 'tools' && renderTools()}
         {activeSection === 'logs' && renderLogs()}
       </div>
     </div>

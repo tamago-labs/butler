@@ -1,4 +1,4 @@
-// src/components/RightPanel.tsx - Updated to pass Claude service
+// src/components/RightPanel.tsx - Updated to use new MCP implementation
 import React, { useState } from 'react';
 import { 
   Bot, 
@@ -9,20 +9,19 @@ import {
 import AIChat from './AIChat';
 import MCPPanel from './MCPPanel';
 import Settings from './Settings';
-import type { ChatMessage, MCPServer } from '../App';
+import type { ChatMessage } from '../App';
 import type { FileTab } from '../hooks/useFileManager';
 import type { User } from '../hooks/useAuth';
 import type { ClaudeService } from '../services/claudeService';
+import { useMCP } from '../hooks/useMCP';
 
 interface RightPanelProps {
   chatHistory: ChatMessage[];
   onSendMessage: (message: string) => Promise<void>;
   currentFile: FileTab;
-  mcpServers: MCPServer[];
-  onMCPAction: (serverName: string, action: 'start' | 'stop') => void;
   isAuthenticated: boolean;
   user: User | null;
-  claudeService: ClaudeService | null; // Add Claude service prop
+  claudeService: ClaudeService | null;
   onShowAuth?: () => void;
   onLogout?: () => void;
   onRefreshCredits?: () => Promise<number | void>;
@@ -34,17 +33,15 @@ const RightPanel: React.FC<RightPanelProps> = ({
   chatHistory,
   onSendMessage,
   currentFile,
-  mcpServers,
-  onMCPAction,
   isAuthenticated,
   user,
-  claudeService, // Add Claude service
+  claudeService,
   onShowAuth,
   onLogout,
   onRefreshCredits
 }) => {
-
   const [activeTab, setActiveTab] = useState<RightPanelTab>('ai');
+  const { runningServers } = useMCP();
 
   const tabs = [
     { 
@@ -58,7 +55,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
       id: 'mcp' as const, 
       icon: Terminal, 
       label: 'MCP Tools', 
-      count: mcpServers.filter(s => s.status === 'running').length 
+      count: runningServers.length 
     },
     { 
       id: 'settings' as const, 
@@ -76,15 +73,13 @@ const RightPanel: React.FC<RightPanelProps> = ({
             onSendMessage={onSendMessage}
             currentFile={currentFile}
             isAuthenticated={isAuthenticated}
-            claudeService={claudeService} // Pass Claude service
+            claudeService={claudeService}
             onShowAuth={onShowAuth}
           />
         );
       case 'mcp':
         return (
           <MCPPanel
-            mcpServers={mcpServers}
-            onMCPAction={onMCPAction}
             isAuthenticated={isAuthenticated}
             onShowAuth={onShowAuth}
           />

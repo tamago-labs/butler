@@ -16,11 +16,6 @@ import { message } from '@tauri-apps/plugin-dialog';
 // import type { FileTab } from './hooks/useFileManager';
 
 
-export interface MCPServer {
-  name: string;
-  status: 'running' | 'stopped' | 'error';
-}
-
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
@@ -86,12 +81,8 @@ function App() {
   //   setChatHistory([welcomeMessage]);
   // }, [isAuthenticated, user?.name, user?.aiCredits]);
 
-  // Mock MCP servers for UI demonstration
-  const [mcpServers] = useState<MCPServer[]>([
-    { name: 'filesystem', status: 'running' },
-    { name: 'git', status: 'stopped' },
-    { name: 'database', status: 'error' },
-  ]);
+  // Mock MCP servers for UI demonstration - now managed by MCP service
+  // const [mcpServers] = useState<MCPServer[]>([...]);
 
   const handleEditorChange = useCallback((value: string) => {
     if (activeFileId) {
@@ -328,10 +319,8 @@ function App() {
     }
   }, [claudeService, currentFile, useAICredit, error, info, setChatHistory]);
 
-  const handleMCPAction = useCallback((serverName: string, action: 'start' | 'stop') => {
-    console.log(`${action} MCP server: ${serverName} (mock)`);
-    // In real implementation, this would manage actual MCP servers
-  }, []);
+  // MCP actions are now handled by the MCP service and hook
+  // const handleMCPAction = useCallback(...);
 
   // Toggle right panel for more editor space
   const toggleRightPanel = useCallback(async () => {
@@ -697,8 +686,6 @@ function App() {
                   chatHistory={chatHistory}
                   onSendMessage={handleSendMessage}
                   currentFile={currentFile}
-                  mcpServers={mcpServers}
-                  onMCPAction={handleMCPAction}
                   isAuthenticated={isAuthenticated}
                   user={user}
                   claudeService={claudeService}
