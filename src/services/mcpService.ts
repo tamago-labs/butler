@@ -554,34 +554,6 @@ export class MCPService {
         args: ['-y', '@modelcontextprotocol/server-filesystem'],
         description: 'Provides file system operations and navigation',
         category: 'filesystem'
-      },
-      {
-        name: 'git',
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-git'],
-        description: 'Git repository management and operations',
-        category: 'git'
-      },
-      {
-        name: 'sqlite',
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-sqlite'],
-        description: 'SQLite database operations',
-        category: 'database'
-      },
-      {
-        name: 'postgres',
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-postgres'],
-        description: 'PostgreSQL database operations',
-        category: 'database'
-      },
-      {
-        name: 'brave-search',
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-brave-search'],
-        description: 'Web search using Brave Search API',
-        category: 'web'
       }
     ];
   }
