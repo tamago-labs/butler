@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { mcpService } from './mcpService';
+import { Logger } from '../components/LogsPanel';
 
 export interface AIResponse {
     content: string;
@@ -15,12 +16,14 @@ export interface ChatMessage {
 
 export class ClaudeService {
     private client: Anthropic;
+    private logger = Logger.getInstance();
 
     constructor(apiKey: string) {
         this.client = new Anthropic({
             apiKey,
             dangerouslyAllowBrowser: true
         });
+        this.logger.info('claude', 'Claude service initialized');
     }
 
     async *streamChatWithHistory(
@@ -52,35 +55,36 @@ export class ClaudeService {
                     pendingToolUse = chunk.content_block;
                     pendingContent = '';
                     isCollectingToolInput = true;
-                    console.log('Claude Service: Tool use started:', pendingToolUse.name);
+                    this.logger.info('claude', `Tool use started: ${pendingToolUse.name}`);
                 } else if (chunk.type === 'content_block_delta') {
                     if (chunk.delta.type === 'text_delta') {
                         yield chunk.delta.text;
                     } else if (chunk.delta.type === 'input_json_delta' && pendingToolUse && isCollectingToolInput) {
                         pendingContent += chunk.delta.partial_json;
-                        console.log('Claude Service: Accumulating tool input:', pendingContent);
+                        this.logger.debug('claude', `Accumulating tool input: ${pendingContent.slice(-50)}...`);
                     }
                 } else if (chunk.type === 'content_block_stop' && pendingToolUse && isCollectingToolInput) {
                     // Execute the tool call
                     try {
-                        console.log('Claude Service: Executing tool with final content:', pendingContent);
-                        
+                        this.logger.info('claude', `Executing tool with final content: ${pendingContent}`);
+
                         // Parse the accumulated JSON input
                         let toolInput = {};
                         if (pendingContent.trim()) {
                             try {
                                 toolInput = JSON.parse(pendingContent);
                             } catch (parseError) {
-                                console.error('Claude Service: Failed to parse tool input JSON:', parseError, 'Content was:', pendingContent);
+                                this.logger.error('claude', `Failed to parse tool input JSON: ${parseError}`, { content: pendingContent });
                                 yield `\n\n**❌ Tool Error: ${pendingToolUse.name}**\nFailed to parse tool arguments: ${parseError}\n\n`;
                                 continue;
                             }
                         }
-                        
+
                         const result = await this.executeMCPTool(pendingToolUse.name, toolInput);
+                        this.logger.info('claude', `Tool executed successfully: ${pendingToolUse.name}`);
                         yield `\n\n**🔧 Tool Result: ${pendingToolUse.name}**\n${result}\n\n`;
                     } catch (toolError) {
-                        console.error('Claude Service: Tool execution failed:', toolError);
+                        this.logger.error('claude', `Tool execution failed: ${pendingToolUse.name}`, { error: toolError.message });
                         yield `\n\n**❌ Tool Error: ${pendingToolUse.name}**\n${toolError}\n\n`;
                     } finally {
                         pendingToolUse = null;
@@ -121,19 +125,25 @@ export class ClaudeService {
 
         return messages;
     }
-  
+
     private buildSystemPrompt(): string {
-        return `You are a helpful coding assistant. 
-      Act like a pair programmer: explain clearly, suggest improvements, and help debug or write code as needed.
+        const workspaceRoot = mcpService.getWorkspaceRoot();
+        const folderInfo = workspaceRoot
+            ? `\n\nCurrent folder: ${workspaceRoot}\nYou can access files and directories within this folder using the filesystem tools.`
+            : '\n\nNo folder is currently open. Ask the user to open a folder first to access files.';
+
+        return `You are a helpful AI assistant.${folderInfo}
       
       Guidelines:
-      - Be concise and actionable
-      - Prioritize readability and best practices
-      - Offer step-by-step help when debugging
-      - If the user has little or no code, suggest how to start
-      - Maintain a friendly, collaborative tone`;
+      - Always explain clearly what you’re doing.
+      - If a tool fails, explain why and suggest alternatives.
+      - Be proactive in offering related tool usage.
+      - Format file contents and directory listings clearly.
+      - When listing directories, use list_directory with the path parameter.
+      
+      Be helpful and efficient!`;
     }
- 
+
     // Test connection method
     async testConnection(): Promise<boolean> {
         try {
@@ -194,7 +204,7 @@ export class ClaudeService {
     }
 
     private async executeMCPTool(toolName: string, input: any): Promise<string> {
-        console.log('Executing MCP tool:', toolName, 'with input:', input); 
+        console.log('Executing MCP tool:', toolName, 'with input:', input);
 
         // Parse server name and tool name from the tool name
         const parts = toolName.split('_');
@@ -203,15 +213,15 @@ export class ClaudeService {
         }
 
         const serverName = parts[0];
-        
+
         const actualToolName = parts.slice(1).join('_');
- 
+
 
         console.log('Parsed server:', serverName, 'tool:', actualToolName);
 
         try {
             const result = await mcpService.callTool(serverName, actualToolName, input);
-            
+
             console.log('MCP tool result:', result);
 
             // Extract text content from the result

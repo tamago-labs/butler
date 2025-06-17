@@ -1,4 +1,5 @@
 import { tauriMCPService } from './tauriMCPService';
+import { Logger } from '../components/LogsPanel';
 
 export interface MCPServerEvent {
   type: string;
@@ -40,27 +41,40 @@ export class MCPService {
   private servers: Map<string, MCPServerInstance> = new Map();
   private eventListeners: Map<string, ((event: MCPServerEvent) => void)[]> = new Map();
   private workspaceRoot: string | null = null;
+  private logger = Logger.getInstance();
 
   constructor() {
     this.setupDefaultServers();
+    this.logger.info('mcp', 'MCP Service initialized');
   }
 
   setWorkspaceRoot(path: string | null) {
+    this.logger.info('mcp', `Setting current folder to: ${path}`);
     this.workspaceRoot = path;
     const fsServer = this.servers.get('filesystem');
     if (fsServer && path) {
+      this.logger.info('mcp', `Updating filesystem server args with new folder: ${path}`);
       fsServer.config.args = ['-y', '@modelcontextprotocol/server-filesystem', path];
       
       if (fsServer.status === 'running') {
-        console.log('Restarting filesystem server with new workspace:', path);
-        this.restartServer('filesystem').catch(err => {
-          console.log('Failed to restart filesystem server:', err.message);
+        this.logger.info('mcp', `Restarting filesystem server with new folder: ${path}`);
+        this.restartServer('filesystem').then(() => {
+          this.logger.info('mcp', `Filesystem server restarted successfully with folder: ${path}`);
+        }).catch(err => {
+          this.logger.error('mcp', `Failed to restart filesystem server: ${err.message}`);
         });
       } else {
-        console.log('Starting filesystem server with workspace:', path);
-        this.startServer('filesystem').catch(err => {
-          console.log('Failed to start filesystem server:', err.message);
+        this.logger.info('mcp', `Starting filesystem server with folder: ${path}`);
+        this.startServer('filesystem').then(() => {
+          this.logger.info('mcp', `Filesystem server started successfully with folder: ${path}`);
+        }).catch(err => {
+          this.logger.error('mcp', `Failed to start filesystem server: ${err.message}`);
         });
+      }
+    } else if (!path) {
+      this.logger.info('mcp', 'No folder path provided, stopping filesystem server');
+      if (fsServer && fsServer.status === 'running') {
+        this.stopServer('filesystem');
       }
     }
   }
@@ -125,6 +139,11 @@ export class MCPService {
       server.status = 'starting';
       this.emit('serverStatusChanged', { serverName, status: 'starting' });
 
+      this.logger.info('mcp', `Starting MCP server ${serverName}`, {
+        command: server.config.command,
+        args: server.config.args
+      });
+
       // Connect to MCP server using real protocol
       await tauriMCPService.connectServer(
         serverName,
@@ -135,6 +154,9 @@ export class MCPService {
       // Load real tools from the server
       const toolsResponse = await tauriMCPService.listTools(serverName);
       server.tools = this.formatMCPTools(toolsResponse);
+      this.logger.info('mcp', `Loaded ${server.tools.length} tools from ${serverName}`, {
+        tools: server.tools.map(t => t.name)
+      });
 
       // Only try to load resources if server supports it (skip for filesystem)
       if (serverName !== 'filesystem') {
@@ -153,12 +175,13 @@ export class MCPService {
       server.lastStarted = new Date();
       server.error = undefined;
 
+      this.logger.info('mcp', `MCP server ${serverName} started successfully`);
       this.emit('serverStatusChanged', { serverName, status: 'running' });
       this.emit('serverStarted', { serverName, tools: server.tools, resources: server.resources });
 
       return true;
     } catch (error) {
-      console.error(`Failed to start MCP server ${serverName}:`, error);
+      this.logger.error('mcp', `Failed to start MCP server ${serverName}`, { error: error.message });
       server.status = 'error';
       server.error = error instanceof Error ? error.message : 'Unknown error';
       
@@ -195,7 +218,21 @@ export class MCPService {
   }
 
   async restartServer(serverName: string): Promise<boolean> {
+    console.log(`Restarting server ${serverName}`);
+    
+    // For filesystem server, make sure it fully stops before starting
+    if (serverName === 'filesystem') {
+      const server = this.servers.get(serverName);
+      if (server) {
+        console.log('Filesystem server config before restart:', server.config);
+      }
+    }
+    
     await this.stopServer(serverName);
+    
+    // Add a small delay to ensure complete shutdown
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     return await this.startServer(serverName);
   }
 
@@ -215,6 +252,11 @@ export class MCPService {
   }
 
   removeServer(serverName: string): void {
+    // Prevent removing the default filesystem server
+    if (serverName === 'filesystem') {
+      throw new Error('Cannot remove the default filesystem server');
+    }
+
     const server = this.servers.get(serverName);
     if (!server) {
       return;
@@ -345,13 +387,6 @@ export class MCPService {
   getServerTemplates(): MCPServerConfig[] {
     return [
       {
-        name: 'filesystem',
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-filesystem'],
-        description: 'Provides file system operations and navigation',
-        category: 'filesystem'
-      },
-      {
         name: 'git',
         command: 'npx',
         args: ['-y', '@modelcontextprotocol/server-git'],
@@ -364,6 +399,13 @@ export class MCPService {
         args: ['-y', '@modelcontextprotocol/server-sqlite'],
         description: 'SQLite database operations',
         category: 'database'
+      },
+      {
+        name: 'web-search',
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-web-search'],
+        description: 'Web search and scraping capabilities',
+        category: 'web'
       }
     ];
   }

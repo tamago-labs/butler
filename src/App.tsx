@@ -13,6 +13,7 @@ import { useFileManager } from './hooks/useFileManager';
 import { useAuth } from './hooks/useAuth';
 import { exit } from '@tauri-apps/plugin-process';
 import { mcpService } from './services/mcpService';
+import { Logger } from './components/LogsPanel';
 
 
 export interface ChatMessage {
@@ -28,6 +29,8 @@ function App() {
   const [isMenuBarVisible, setIsMenuBarVisible] = useState(true);
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  
+  const logger = Logger.getInstance();
 
   // Authentication Hook - now includes claudeService
   const { user, isAuthenticated, authenticateWithAccessKey, validateAccessKey, logout, hasAIAccess, useAICredit, refreshCredits, claudeService } = useAuth();
@@ -391,11 +394,16 @@ function App() {
 
   // Update MCP service when workspace root changes
   useEffect(() => {
+    logger.info('app', `Current folder changed to: ${workspaceRoot}`);
     if (workspaceRoot) {
+      logger.info('app', `Setting MCP current folder to: ${workspaceRoot}`);
       mcpService.setWorkspaceRoot(workspaceRoot);
-      console.log('Updated MCP workspace root to:', workspaceRoot);
+      logger.info('app', 'MCP current folder updated');
+    } else {
+      logger.info('app', 'No current folder, setting MCP folder to null');
+      mcpService.setWorkspaceRoot(null);
     }
-  }, [workspaceRoot]);
+  }, [workspaceRoot, logger]);
 
   // Calculate the main content area width (excluding sidebar)
   const mainContentWidth = `calc(100% - ${sidebarWidth}px)`;

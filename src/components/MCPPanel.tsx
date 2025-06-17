@@ -12,9 +12,11 @@ import {
   Loader2,
   Wrench,
   Database,
-  FileText
+  FileText,
+  Activity
 } from 'lucide-react';
 import { useMCP } from '../hooks/useMCP';
+import LogsPanel from './LogsPanel';
 
 const MCPPanel: React.FC = () => {
   const {
@@ -37,6 +39,7 @@ const MCPPanel: React.FC = () => {
   const [showAddServer, setShowAddServer] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customArgs, setCustomArgs] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'servers' | 'logs'>('servers');
 
   // Auto-refresh server status
   useEffect(() => {
@@ -99,185 +102,235 @@ const MCPPanel: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-sidebar-bg">
-      {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-3">
+      {/* Header with Tabs */}
+      <div className="flex-shrink-0 border-b border-border">
+        <div className="flex items-center p-3 pb-2">
           <div className="flex items-center gap-2">
             <Server className="w-5 h-5 text-accent" />
-            <h3 className="font-medium text-text-primary">MCP Servers</h3>
+            <h3 className="font-medium text-text-primary">MCP Tools</h3>
           </div>
-          <button
-            onClick={() => setShowAddServer(true)}
-            className="p-1 hover:bg-gray-700 rounded text-text-muted hover:text-text-primary"
-            title="Add Server"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Status Summary */}
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="bg-gray-800 rounded p-2 text-center">
-            <div className="text-text-primary font-medium">{runningServers.length}</div>
-            <div className="text-text-muted">Running</div>
-          </div>
-          <div className="bg-gray-800 rounded p-2 text-center">
-            <div className="text-text-primary font-medium">{getTotalToolCount()}</div>
-            <div className="text-text-muted">Tools</div>
-          </div>
-          <div className="bg-gray-800 rounded p-2 text-center">
-            <div className="text-text-primary font-medium">{getTotalResourceCount()}</div>
-            <div className="text-text-muted">Resources</div>
-          </div>
-        </div>
-
-        {/* Error Display */}
-        {error && (
-          <div className="mt-3 p-2 bg-red-900/50 border border-red-500 rounded text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-red-200">{error}</span>
-              <button 
-                onClick={clearError}
-                className="text-red-400 hover:text-red-200"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Server List */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-3">
-          {servers.map((server) => (
-            <div
-              key={server.config.name}
-              className="border border-border rounded-lg p-3 bg-gray-800/50"
+          {activeTab === 'servers' && (
+            <button
+              onClick={() => setShowAddServer(true)}
+              className="ml-auto p-1 hover:bg-gray-700 rounded text-text-muted hover:text-text-primary"
+              title="Add Server"
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(server.status)}
-                  <span className="font-medium text-text-primary text-sm">
-                    {server.config.name}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-1">
-                  {server.status === 'running' ? (
-                    <>
-                      <button
-                        onClick={() => handleRestartServer(server.config.name)}
-                        className="p-1 hover:bg-gray-700 rounded text-text-muted hover:text-text-primary"
-                        title="Restart"
-                        disabled={isLoading}
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleStopServer(server.config.name)}
-                        className="p-1 hover:bg-gray-700 rounded text-red-400 hover:text-red-300"
-                        title="Stop"
-                        disabled={isLoading}
-                      >
-                        <Square className="w-3 h-3" />
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => handleStartServer(server.config.name)}
-                      className="p-1 hover:bg-gray-700 rounded text-green-400 hover:text-green-300"
-                      title="Start"
-                      disabled={isLoading || server.status === 'starting'}
-                    >
-                      <Play className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-xs text-text-muted mb-2">
-                {server.config.description}
-              </div>
-
-              {server.status === 'error' && server.error && (
-                <div className="text-xs text-red-400 mb-2">
-                  Error: {server.error}
-                </div>
-              )}
-
-              {server.status === 'running' && (
-                <div className="space-y-2">
-                  {/* Tools */}
-                  {server.tools.length > 0 && (
-                    <div className="bg-gray-900/50 rounded p-2">
-                      <div className="flex items-center gap-1 mb-1">
-                        <Wrench className="w-3 h-3 text-blue-400" />
-                        <span className="text-xs text-text-muted">Tools ({server.tools.length})</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {server.tools.slice(0, 3).map((tool) => (
-                          <span
-                            key={tool.name}
-                            className="px-1.5 py-0.5 bg-blue-900/50 text-blue-300 rounded text-xs"
-                            title={tool.description}
-                          >
-                            {tool.name}
-                          </span>
-                        ))}
-                        {server.tools.length > 3 && (
-                          <span className="px-1.5 py-0.5 bg-gray-700 text-text-muted rounded text-xs">
-                            +{server.tools.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Resources */}
-                  {server.resources.length > 0 && (
-                    <div className="bg-gray-900/50 rounded p-2">
-                      <div className="flex items-center gap-1 mb-1">
-                        <Database className="w-3 h-3 text-green-400" />
-                        <span className="text-xs text-text-muted">Resources ({server.resources.length})</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {server.resources.slice(0, 2).map((resource) => (
-                          <span
-                            key={resource.uri}
-                            className="px-1.5 py-0.5 bg-green-900/50 text-green-300 rounded text-xs"
-                            title={resource.description || resource.uri}
-                          >
-                            {resource.name}
-                          </span>
-                        ))}
-                        {server.resources.length > 2 && (
-                          <span className="px-1.5 py-0.5 bg-gray-700 text-text-muted rounded text-xs">
-                            +{server.resources.length - 2} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {server.tools.length === 0 && server.resources.length === 0 && (
-                    <div className="text-xs text-text-muted italic">
-                      No tools or resources available
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {servers.length === 0 && (
-            <div className="text-center text-text-muted py-8">
-              <Server className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No MCP servers configured</p>
-              <p className="text-xs mt-1">Click + to add a server</p>
-            </div>
+              <Plus className="w-4 h-4" />
+            </button>
           )}
         </div>
+        
+        {/* Sub-tabs */}
+        <div className="flex px-3">
+          <button
+            onClick={() => setActiveTab('servers')}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${
+              activeTab === 'servers'
+                ? 'text-accent border-accent'
+                : 'text-text-muted border-transparent hover:text-text-primary'
+            }`}
+          >
+            <Wrench className="w-4 h-4" />
+            Servers
+            <span className="text-xs bg-gray-700 px-1.5 py-0.5 rounded">
+              {runningServers.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${
+              activeTab === 'logs'
+                ? 'text-accent border-accent'
+                : 'text-text-muted border-transparent hover:text-text-primary'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            Logs
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'servers' ? (
+          <div className="h-full flex flex-col">
+            {/* Status Summary */}
+            <div className="flex-shrink-0 p-3">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-gray-800 rounded p-2 text-center">
+                  <div className="text-text-primary font-medium">{runningServers.length}</div>
+                  <div className="text-text-muted">Running</div>
+                </div>
+                <div className="bg-gray-800 rounded p-2 text-center">
+                  <div className="text-text-primary font-medium">{getTotalToolCount()}</div>
+                  <div className="text-text-muted">Tools</div>
+                </div>
+                <div className="bg-gray-800 rounded p-2 text-center">
+                  <div className="text-text-primary font-medium">{getTotalResourceCount()}</div>
+                  <div className="text-text-muted">Resources</div>
+                </div>
+              </div>
+
+              {/* Error Display */}
+              {error && (
+                <div className="mt-3 p-2 bg-red-900/50 border border-red-500 rounded text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-red-200">{error}</span>
+                    <button 
+                      onClick={clearError}
+                      className="text-red-400 hover:text-red-200"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Server List */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 space-y-3">
+                {servers.map((server) => (
+                  <div
+                    key={server.config.name}
+                    className="border border-border rounded-lg p-3 bg-gray-800/50"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(server.status)}
+                        <span className="font-medium text-text-primary text-sm">
+                          {server.config.name}
+                        </span>
+                        {server.config.name === 'filesystem' && (
+                          <span className="px-1.5 py-0.5 bg-blue-900/50 text-blue-300 rounded text-xs">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        {server.status === 'running' ? (
+                          <>
+                            <button
+                              onClick={() => handleRestartServer(server.config.name)}
+                              className="p-1 hover:bg-gray-700 rounded text-text-muted hover:text-text-primary"
+                              title="Restart"
+                              disabled={isLoading}
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleStopServer(server.config.name)}
+                              className="p-1 hover:bg-gray-700 rounded text-red-400 hover:text-red-300"
+                              title="Stop"
+                              disabled={isLoading}
+                            >
+                              <Square className="w-3 h-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleStartServer(server.config.name)}
+                            className="p-1 hover:bg-gray-700 rounded text-green-400 hover:text-green-300"
+                            title="Start"
+                            disabled={isLoading || server.status === 'starting'}
+                          >
+                            <Play className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-text-muted mb-2">
+                      {server.config.description}
+                      {server.config.name === 'filesystem' && (
+                        <span className="text-blue-400"> (Required for file operations)</span>
+                      )}
+                    </div>
+
+                    {server.status === 'error' && server.error && (
+                      <div className="text-xs text-red-400 mb-2">
+                        Error: {server.error}
+                      </div>
+                    )}
+
+                    {server.status === 'running' && (
+                      <div className="space-y-2">
+                        {/* Tools */}
+                        {server.tools.length > 0 && (
+                          <div className="bg-gray-900/50 rounded p-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Wrench className="w-3 h-3 text-blue-400" />
+                              <span className="text-xs text-text-muted">Tools ({server.tools.length})</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {server.tools.slice(0, 3).map((tool) => (
+                                <span
+                                  key={tool.name}
+                                  className="px-1.5 py-0.5 bg-blue-900/50 text-blue-300 rounded text-xs"
+                                  title={tool.description}
+                                >
+                                  {tool.name}
+                                </span>
+                              ))}
+                              {server.tools.length > 3 && (
+                                <span className="px-1.5 py-0.5 bg-gray-700 text-text-muted rounded text-xs">
+                                  +{server.tools.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Resources */}
+                        {server.resources.length > 0 && (
+                          <div className="bg-gray-900/50 rounded p-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Database className="w-3 h-3 text-green-400" />
+                              <span className="text-xs text-text-muted">Resources ({server.resources.length})</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {server.resources.slice(0, 2).map((resource) => (
+                                <span
+                                  key={resource.uri}
+                                  className="px-1.5 py-0.5 bg-green-900/50 text-green-300 rounded text-xs"
+                                  title={resource.description || resource.uri}
+                                >
+                                  {resource.name}
+                                </span>
+                              ))}
+                              {server.resources.length > 2 && (
+                                <span className="px-1.5 py-0.5 bg-gray-700 text-text-muted rounded text-xs">
+                                  +{server.resources.length - 2} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {server.tools.length === 0 && server.resources.length === 0 && (
+                          <div className="text-xs text-text-muted italic">
+                            No tools or resources available
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {servers.length === 0 && (
+                  <div className="text-center text-text-muted py-8">
+                    <Server className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No MCP servers configured</p>
+                    <p className="text-xs mt-1">Click + to add a server</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <LogsPanel />
+        )}
       </div>
 
       {/* Add Server Modal */}
