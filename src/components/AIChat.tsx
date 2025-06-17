@@ -84,19 +84,7 @@ const AIChat: React.FC<AIChatProps> = ({
       setIsLoading(false);
     }
   };
-
-  const handleQuickAction = async (actionType: 'analyze' | 'debug' | 'explain' | 'optimize') => {
-    if (!claudeService || !currentFile.content) return;
-    
-    const actions = {
-      analyze: () => setInput(`Analyze my ${currentFile.language} code and suggest improvements. Use MCP tools to explore project structure if helpful.`),
-      debug: () => setInput(`Review my code for potential bugs and issues. Use filesystem tools to check related files if needed.`),
-      explain: () => setInput(`Explain what this code does and how it works. Use MCP tools to understand project context if needed.`),
-      optimize: () => setInput(`How can I optimize this code for better performance? Use filesystem tools to understand project structure if helpful.`)
-    };
-
-    actions[actionType]();
-  };
+ 
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -104,33 +92,7 @@ const AIChat: React.FC<AIChatProps> = ({
       handleSend();
     }
   };
-
-  const quickActions = [
-    {
-      icon: <Code className="w-4 h-4" />,
-      label: 'Analyze Code',
-      action: () => handleQuickAction('analyze'),
-      disabled: !currentFile.content
-    },
-    {
-      icon: <Bug className="w-4 h-4" />,
-      label: 'Find Issues',
-      action: () => handleQuickAction('debug'),
-      disabled: !currentFile.content
-    },
-    {
-      icon: <Lightbulb className="w-4 h-4" />,
-      label: 'Explain Code',
-      action: () => handleQuickAction('explain'),
-      disabled: !currentFile.content
-    },
-    {
-      icon: <Zap className="w-4 h-4" />,
-      label: 'Optimize',
-      action: () => handleQuickAction('optimize'),
-      disabled: !currentFile.content
-    }
-  ];
+ 
 
   const copyMessage = (content: string) => {
     navigator.clipboard.writeText(content);
@@ -179,8 +141,7 @@ const AIChat: React.FC<AIChatProps> = ({
           </div>
         </div>
         
-        <div className="mt-2 text-xs text-text-muted">
-          Working on: <span className="text-accent">{currentFile.name}</span>
+        <div className="mt-2 text-xs text-text-muted"> 
           {currentFile.isDirty && <span className="text-warning ml-1">●</span>}
           {workspaceRoot && (
             <div className="mt-1">
@@ -210,31 +171,14 @@ const AIChat: React.FC<AIChatProps> = ({
           </div>
         )}
       </div>
-
-      {/* Quick Actions */}
-      <div className="flex-shrink-0 border-b border-border p-3">
-        <div className="grid grid-cols-2 gap-2">
-          {quickActions.map((action, index) => (
-            <button
-              key={index}
-              onClick={action.action}
-              disabled={action.disabled || !claudeService}
-              className="flex items-center gap-2 p-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed rounded text-left transition-colors"
-              title={action.disabled ? 'Open a file with code to use this feature' : action.label}
-            >
-              {action.icon}
-              <span className="text-sm truncate">{action.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+ 
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {chatHistory.length === 0 && (
           <div className="text-center text-text-muted py-8">
             <Bot className="w-12 h-12 mx-auto mb-4 text-accent" />
-            <h4 className="font-medium mb-2">Claude AI Assistant Ready</h4>
+            <h4 className="font-medium mb-2">Your AI Assistant Ready</h4>
             <p className="text-sm mb-4">
               {claudeService ? 
                 "I'm ready to help you with code analysis, debugging, explanations, and more!" :

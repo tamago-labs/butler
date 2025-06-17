@@ -62,7 +62,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
         
         <div className="flex items-center gap-1">
           {getAIStatusIcon()}
-          <span>AI {aiStatus}</span>
+          <span>AI Service: {aiStatus}</span>
         </div>
         
         {/* Right Panel Toggle */}

@@ -358,64 +358,7 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
           );
         })}
       </div>
-
-      {/* Custom Server Form */}
-      <div className="border-t border-gray-600 pt-4">
-        <h4 className="text-sm font-medium text-text-primary mb-3">Add Custom Server</h4>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Server Name</label>
-            <input
-              type="text"
-              value={customServerForm.name}
-              onChange={(e) => setCustomServerForm(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-text-primary focus:border-accent focus:outline-none"
-              placeholder="my-custom-server"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Command & Args</label>
-            <input
-              type="text"
-              value={customServerForm.command}
-              onChange={(e) => setCustomServerForm(prev => ({ ...prev, command: e.target.value }))}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-text-primary focus:border-accent focus:outline-none"
-              placeholder="npx my-mcp-server --arg1 value1"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Description</label>
-            <input
-              type="text"
-              value={customServerForm.description}
-              onChange={(e) => setCustomServerForm(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-text-primary focus:border-accent focus:outline-none"
-              placeholder="Description of what this server does"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Category</label>
-            <select
-              value={customServerForm.category}
-              onChange={(e) => setCustomServerForm(prev => ({ ...prev, category: e.target.value as any }))}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-text-primary focus:border-accent focus:outline-none"
-            >
-              <option value="custom">Custom</option>
-              <option value="filesystem">Filesystem</option>
-              <option value="database">Database</option>
-              <option value="web">Web</option>
-              <option value="git">Git</option>
-            </select>
-          </div>
-          <button
-            onClick={handleAddCustomServer}
-            disabled={!customServerForm.name || !customServerForm.command}
-            className="w-full px-3 py-2 bg-accent text-white rounded hover:bg-accent-hover transition-colors text-sm disabled:bg-gray-600 disabled:cursor-not-allowed"
-          >
-            Add Custom Server
-          </button>
-        </div>
-      </div>
+ 
     </div>
   );
 

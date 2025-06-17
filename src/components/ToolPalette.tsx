@@ -60,37 +60,7 @@ const ToolPalette: React.FC<ToolPaletteProps> = ({ onClose, onCommand }) => {
       icon: <Save className="w-4 h-4" />, 
       category: 'File' 
     },
-
-    // AI Operations
-    { 
-      id: 'analyze-code', 
-      label: 'Analyze Code', 
-      description: 'Get AI analysis of current code',
-      icon: <Code className="w-4 h-4" />, 
-      category: 'AI' 
-    },
-    { 
-      id: 'find-bugs', 
-      label: 'Find Issues', 
-      description: 'AI-powered bug detection',
-      icon: <Bug className="w-4 h-4" />, 
-      category: 'AI' 
-    },
-    { 
-      id: 'explain-code', 
-      label: 'Explain Code', 
-      description: 'Get code explanation from AI',
-      icon: <Lightbulb className="w-4 h-4" />, 
-      category: 'AI' 
-    },
-    { 
-      id: 'optimize-code', 
-      label: 'Optimize Code', 
-      description: 'Get optimization suggestions',
-      icon: <Zap className="w-4 h-4" />, 
-      category: 'AI' 
-    },
-
+  
     // View Operations
     { 
       id: 'toggle-right-panel', 
@@ -199,7 +169,7 @@ const ToolPalette: React.FC<ToolPaletteProps> = ({ onClose, onCommand }) => {
                   {category}
                 </div>
                 
-                {categoryCommands.map((command, index) => {
+                {categoryCommands.map((command, _) => {
                   const globalIndex = filteredCommands.indexOf(command);
                   const isSelected = globalIndex === selectedIndex;
                   

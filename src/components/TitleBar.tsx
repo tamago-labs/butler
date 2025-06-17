@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Minimize2, Square, X, User, LogOut, Settings, SidebarOpen, SidebarClose, ConciergeBell } from 'lucide-react';
+import {   Minimize2, Square, X, User, LogOut, Settings, ConciergeBell } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface TitleBarProps {
@@ -46,23 +46,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
           <span>{currentFileName}</span>
         </div>
       </div>
-
-      {/* Center: Right Panel Toggle */}
-      {/* <div className="flex items-center">
-        <button
-          onClick={onToggleRightPanel}
-          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-700 rounded transition-colors no-drag text-xs text-text-muted"
-          title={isRightPanelVisible ? 'Hide Right Panel (Ctrl+J)' : 'Show Right Panel (Ctrl+J)'}
-        >
-          {isRightPanelVisible ? (
-            <SidebarClose className="w-3 h-3" />
-          ) : (
-            <SidebarOpen className="w-3 h-3" />
-          )}
-          <span>{isRightPanelVisible ? 'Hide Panel' : 'Show Panel'}</span>
-        </button>
-      </div> */}
-
+ 
       {/* Right: User Menu and Window Controls */}
       <div className="flex items-center gap-2">
         {/* User Menu */}

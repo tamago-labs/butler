@@ -4,7 +4,8 @@ import {
   Bot, 
   Terminal,
   Settings as SettingsIcon,
-  X
+  X,
+  Wrench
 } from 'lucide-react';
 import AIChat from './AIChat';
 import MCPPanel from './MCPPanel';
@@ -49,13 +50,13 @@ const RightPanel: React.FC<RightPanelProps> = ({
     { 
       id: 'ai' as const, 
       icon: Bot, 
-      label: 'Claude AI', 
+      label: 'AI Assistant', 
       count: chatHistory.length,
       indicator: claudeService ? 'connected' : 'disconnected'
     },
     { 
       id: 'mcp' as const, 
-      icon: Terminal, 
+      icon: Wrench, 
       label: 'MCP Tools', 
       count: runningServers.length 
     },

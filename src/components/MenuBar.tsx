@@ -8,11 +8,12 @@ import {
   Terminal,
   HelpCircle,
   ChevronDown,
-  Brain,
+  Wrench,
   SidebarOpen,
   SidebarClose,
   Plus,
-  Bot
+  Bot,
+  Sidebar
 } from 'lucide-react';
 
 interface MenuBarProps {
@@ -61,23 +62,15 @@ const MenuBar: React.FC<MenuBarProps> = ({ onAction, isRightPanelVisible }) => {
         label: isRightPanelVisible ? 'Hide AI Panel' : 'Show AI Panel',
         action: 'toggle-right-panel',
         shortcut: 'Ctrl+J',
-        icon: isRightPanelVisible ? <Bot className="w-4 h-4" /> : <Bot className="w-4 h-4" />
+        icon: isRightPanelVisible ? <Sidebar className="w-4 h-4" /> : <Sidebar className="w-4 h-4" />
       },
       { separator: true },
-      { label: 'AI Assistant', action: 'toggle-ai', shortcut: 'Ctrl+Shift+A' },
-      { label: 'MCP Tools', action: 'toggle-mcp', shortcut: 'Ctrl+Shift+M', icon: <Terminal className="w-4 h-4" /> },
+      { label: 'AI Assistant', action: 'toggle-ai', shortcut: 'Ctrl+Shift+A', icon: <Bot className="w-4 h-4" /> },
+      { label: 'MCP Tools', action: 'toggle-mcp', shortcut: 'Ctrl+Shift+M', icon: <Wrench className="w-4 h-4" /> },
       { separator: true },
       { label: 'Toggle Menu Bar', action: 'toggle-menu', shortcut: 'Ctrl+B' },
       { label: 'Command Palette', action: 'command-palette', shortcut: 'Ctrl+Shift+P' },
-    ],
-    AI: [
-      { label: 'Analyze Code', action: 'analyze-code', shortcut: 'Ctrl+Shift+A', icon: <Brain className="w-4 h-4" /> },
-      { label: 'Explain Code', action: 'explain-code' },
-      { label: 'Find Issues', action: 'find-issues' },
-      { label: 'Optimize Code', action: 'optimize-code' },
-      { separator: true },
-      { label: 'Clear Chat History', action: 'clear-chat' },
-    ],
+    ], 
     Tools: [
       { label: 'Settings', action: 'settings', shortcut: 'Ctrl+,', icon: <Settings className="w-4 h-4" /> },
     ],

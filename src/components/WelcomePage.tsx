@@ -97,42 +97,42 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
     'Panels': shortcuts.filter(s => s.category === 'Panels')
   };
 
-  const quickActions = [
-    {
-      icon: <FolderOpen className="w-5 h-5" />,
-      title: 'Open Folder',
-      description: 'Start by opening a project folder',
-      action: onOpenFolder,
-      primary: true
-    },
-    {
-      icon: <FileText className="w-5 h-5" />,
-      title: 'New File',
-      description: 'Create a new file to start coding',
-      action: () => console.log('New file'),
-      primary: false
-    },
-    {
-      icon: <GitBranch className="w-5 h-5" />,
-      title: 'Clone Repository',
-      description: 'Clone a Git repository to get started',
-      action: () => console.log('Clone repo'),
-      primary: false
-    },
-    {
-      icon: <Settings className="w-5 h-5" />,
-      title: 'Settings',
-      description: 'Configure Butler to your preferences',
-      action: () => console.log('Settings'),
-      primary: false
-    }
-  ];
+  // const quickActions = [
+  //   {
+  //     icon: <FolderOpen className="w-5 h-5" />,
+  //     title: 'Open Folder',
+  //     description: 'Start by opening a project folder',
+  //     action: onOpenFolder,
+  //     primary: true
+  //   },
+  //   {
+  //     icon: <FileText className="w-5 h-5" />,
+  //     title: 'New File',
+  //     description: 'Create a new file to start coding',
+  //     action: () => console.log('New file'),
+  //     primary: false
+  //   },
+  //   {
+  //     icon: <GitBranch className="w-5 h-5" />,
+  //     title: 'Clone Repository',
+  //     description: 'Clone a Git repository to get started',
+  //     action: () => console.log('Clone repo'),
+  //     primary: false
+  //   },
+  //   {
+  //     icon: <Settings className="w-5 h-5" />,
+  //     title: 'Settings',
+  //     description: 'Configure Butler to your preferences',
+  //     action: () => console.log('Settings'),
+  //     primary: false
+  //   }
+  // ];
 
-  const recentProjects = [
-    { name: 'my-react-app', path: '/Users/dev/projects/my-react-app', lastOpened: '2 hours ago' },
-    { name: 'api-server', path: '/Users/dev/projects/api-server', lastOpened: '1 day ago' },
-    { name: 'website-redesign', path: '/Users/dev/projects/website-redesign', lastOpened: '3 days ago' }
-  ];
+  // const recentProjects = [
+  //   { name: 'my-react-app', path: '/Users/dev/projects/my-react-app', lastOpened: '2 hours ago' },
+  //   { name: 'api-server', path: '/Users/dev/projects/api-server', lastOpened: '1 day ago' },
+  //   { name: 'website-redesign', path: '/Users/dev/projects/website-redesign', lastOpened: '3 days ago' }
+  // ];
 
   return (
     <div className="flex-1 overflow-y-auto bg-editor-bg">
@@ -175,7 +175,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
         {isAuthenticated && (
           <>
             {/* Quick Actions */}
-            <div className="space-y-6">
+            {/* <div className="space-y-6">
               <h3 className="text-xl font-semibold text-text-primary">Quick Actions</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {quickActions.map((action, index) => (
@@ -204,10 +204,10 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
                   </button>
                 ))}
               </div>
-            </div>
+            </div> */}
 
             {/* Recent Projects */}
-            <div className="space-y-6">
+            {/* <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-text-primary">Recent Projects</h3>
                 <button className="text-accent hover:text-accent-hover text-sm font-medium">
@@ -235,7 +235,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
                   </div>
                 ))}
               </div>
-            </div>
+            </div> */}
           </>
         )}
 
@@ -244,10 +244,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
           <div className="text-center">
             <h3 className="text-xl font-semibold text-text-primary mb-2">
               Keyboard Shortcuts
-            </h3>
-            <p className="text-text-muted">
-              Master Butler with these essential shortcuts
-            </p>
+            </h3> 
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
