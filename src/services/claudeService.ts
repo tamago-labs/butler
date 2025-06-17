@@ -1,9 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { mcpService, MCPTool } from './mcpService';
+import { mcpService } from './mcpService';
 
 export interface AIResponse {
     content: string;
     isComplete: boolean;
+}
+
+export interface ChatMessage {
+    id: string;
+    sender: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
 }
 
 export class ClaudeService {
@@ -16,27 +23,23 @@ export class ClaudeService {
         });
     }
 
-    async *streamAnalyzeCode(
-        code: string,
-        language: string,
-        userMessage: string,
-        fileName?: string
+    async *streamChatWithHistory(
+        chatHistory: ChatMessage[],
+        currentMessage: string
     ): AsyncGenerator<string, void, unknown> {
-        const systemPrompt = this.buildSystemPrompt(language, code, fileName);
+        const systemPrompt = this.buildSystemPrompt();
         const tools = this.getMCPTools();
+        const messages = this.buildConversationMessages(chatHistory, currentMessage);
+
+        console.log('Claude Service: Starting stream with conversation history:', messages.length, 'messages');
 
         try {
             const stream = await this.client.messages.create({
-                model: "claude-sonnet-4-20250514", // Latest Claude model
+                model: "claude-sonnet-4-20250514",
                 max_tokens: 4000,
                 system: systemPrompt,
                 tools: tools.length > 0 ? tools : undefined,
-                messages: [
-                    {
-                        role: "user",
-                        content: userMessage
-                    }
-                ],
+                messages: messages,
                 stream: true
             });
 
@@ -46,6 +49,7 @@ export class ClaudeService {
             for await (const chunk of stream) {
                 if (chunk.type === 'content_block_start' && chunk.content_block.type === 'tool_use') {
                     pendingToolUse = chunk.content_block;
+                    console.log('Claude Service: Tool use started:', pendingToolUse.name);
                 } else if (chunk.type === 'content_block_delta') {
                     if (chunk.delta.type === 'text_delta') {
                         yield chunk.delta.text;
@@ -55,195 +59,63 @@ export class ClaudeService {
                 } else if (chunk.type === 'content_block_stop' && pendingToolUse) {
                     // Execute the tool call
                     try {
+                        console.log('Claude Service: Executing tool with content:', pendingContent);
                         const toolInput = JSON.parse(pendingContent);
                         const result = await this.executeMCPTool(pendingToolUse.name, toolInput);
-                        yield `\n\n[Tool Result: ${pendingToolUse.name}]\n${result}\n\n`;
+                        yield `\n\n**🔧 Tool Result: ${pendingToolUse.name}**\n${result}\n\n`;
                     } catch (toolError) {
-                        yield `\n\n[Tool Error: ${pendingToolUse.name}] ${toolError}\n\n`;
+                        console.error('Claude Service: Tool execution failed:', toolError);
+                        yield `\n\n**❌ Tool Error: ${pendingToolUse.name}**\n${toolError}\n\n`;
                     }
                     pendingToolUse = null;
                     pendingContent = '';
                 }
             }
         } catch (error: any) {
-            console.error('Claude API error:', error);
+            console.error('Claude Service: API error:', error);
             throw new Error(`Claude API error: ${error.message}`);
         }
     }
 
-    async analyzeCode(
-        code: string,
-        language: string,
-        userMessage: string,
-        fileName?: string
-    ): Promise<string> {
-        const systemPrompt = this.buildSystemPrompt(language, code, fileName);
-        const tools = this.getMCPTools();
+    private buildConversationMessages(chatHistory: ChatMessage[], currentMessage: string): any[] {
+        const messages: any[] = [];
 
-        try {
-            const response = await this.client.messages.create({
-                model: "claude-sonnet-4-20250514",
-                max_tokens: 4000,
-                system: systemPrompt,
-                tools: tools.length > 0 ? tools : undefined,
-                messages: [
-                    {
-                        role: "user",
-                        content: userMessage
-                    }
-                ]
+        // Add previous conversation history (excluding the current message)
+        for (const msg of chatHistory) {
+            messages.push({
+                role: msg.sender === 'user' ? 'user' : 'assistant',
+                content: msg.content
             });
-
-            let result = '';
-
-            // Process response content and handle tool calls
-            for (const block of response.content) {
-                if (block.type === 'text') {
-                    result += block.text;
-                } else if (block.type === 'tool_use') {
-                    try {
-                        const toolResult = await this.executeMCPTool(block.name, block.input);
-                        result += `\n\n[Tool Result: ${block.name}]\n${toolResult}\n\n`;
-                    } catch (toolError) {
-                        result += `\n\n[Tool Error: ${block.name}] ${toolError}\n\n`;
-                    }
-                }
-            }
-
-            return result;
-        } catch (error: any) {
-            console.error('Claude API error:', error);
-            throw new Error(`Claude API error: ${error.message}`);
         }
-    }
 
-    private buildSystemPrompt(language: string, code: string, fileName?: string): string {
-        const fileInfo = fileName ? `File: ${fileName}` : '';
-        const availableTools = this.getMCPToolDescriptions();
-        const hasTools = mcpService.getAvailableTools().length > 0;
+        // Add current message
+        messages.push({
+            role: 'user',
+            content: currentMessage
+        });
 
-        return `You are an expert code assistant specializing in ${language} development. You provide helpful, accurate, and actionable advice about code. ${hasTools ? 'You have access to MCP (Model Context Protocol) tools that can help you interact with files, directories, and other systems.' : ''}
-
-${fileInfo}
-Current ${language} code context:
-\`\`\`${language}
-${code}
-\`\`\`
-
-${hasTools ? `Available Tools:
-${availableTools}
-
-IMPORTANT: You MUST use the available tools when users ask about files, directories, or project structure. Always prefer using tools over making assumptions.
-
-When listing files or directories:
-- Use "." or current workspace path for the current directory
-- Use specific paths when users mention them
-- If no path specified, assume they mean the current workspace
-
-` : ''}Guidelines:
-- Provide clear, concise explanations
-- Focus on best practices and code quality
-- Suggest specific improvements when relevant
-${hasTools ? '- ALWAYS use available tools when users ask about files, directories, or project exploration' : ''}
-- Be encouraging and helpful
-- If the code is empty or minimal, offer to help with starting the implementation
-- For debugging requests, provide step-by-step analysis
-- For optimization requests, focus on performance and maintainability
-${hasTools ? '- When users ask about files or directories, IMMEDIATELY use the filesystem tools to provide accurate information' : ''}
-
-${hasTools ? `You can use tools to:
-- Read file contents with read_file
-- List directory contents with list_directory (use "." for current directory)
-- Write files with write_file
-- Get git status and other repository information
-- And more depending on available MCP servers
-
-When a user asks about listing files or exploring directories, you MUST use the list_directory tool with "." for current directory.
-` : ''}
-Respond in a conversational, helpful tone as if you're pair programming with the user.`;
-    }
-
-    // Quick action methods for common tasks
-    async explainCode(code: string, language: string, fileName?: string): Promise<string> {
-        return this.analyzeCode(
-            code,
-            language,
-            "Please explain what this code does, how it works, and highlight any interesting patterns or potential improvements. If this file is part of a larger project, you can use the filesystem tools to explore related files for better context.",
-            fileName
-        );
-    }
-
-    async findBugs(code: string, language: string, fileName?: string): Promise<string> {
-        return this.analyzeCode(
-            code,
-            language,
-            "Please review this code for potential bugs, errors, or issues. Look for logic errors, edge cases, performance problems, and security vulnerabilities. You can use filesystem tools to check related files if needed for context.",
-            fileName
-        );
-    }
-
-    async optimizeCode(code: string, language: string, fileName?: string): Promise<string> {
-        return this.analyzeCode(
-            code,
-            language,
-            "Please analyze this code for optimization opportunities. Focus on performance improvements, code clarity, maintainability, and best practices. Use filesystem tools to understand the project structure if it would help with optimization suggestions.",
-            fileName
-        );
-    }
-
-    async generateCode(prompt: string, language: string, context?: string): Promise<string> {
-        const tools = this.getMCPTools();
-        const systemPrompt = `You are an expert ${language} developer. Generate clean, well-commented, production-ready code.
-
-${context ? `Context: ${context}` : ''}
-
-You have access to MCP tools for file system operations if needed to understand the project structure or read existing files.
-
-Guidelines:
-- Write clear, readable code with appropriate comments
-- Follow ${language} best practices and conventions
-- Include error handling where appropriate
-- Make the code modular and maintainable
-- Add type annotations if applicable (TypeScript, etc.)
-- Use available tools to understand project context if helpful`;
-
-        try {
-            const response = await this.client.messages.create({
-                model: "claude-sonnet-4-20250514",
-                max_tokens: 4000,
-                system: systemPrompt,
-                tools: tools.length > 0 ? tools : undefined,
-                messages: [
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ]
-            });
-
-            let result = '';
-
-            // Process response content and handle tool calls
-            for (const block of response.content) {
-                if (block.type === 'text') {
-                    result += block.text;
-                } else if (block.type === 'tool_use') {
-                    try {
-                        const toolResult = await this.executeMCPTool(block.name, block.input);
-                        result += `\n\n[Tool Result: ${block.name}]\n${toolResult}\n\n`;
-                    } catch (toolError) {
-                        result += `\n\n[Tool Error: ${block.name}] ${toolError}\n\n`;
-                    }
-                }
-            }
-
-            return result;
-        } catch (error: any) {
-            console.error('Claude API error:', error);
-            throw new Error(`Claude API error: ${error.message}`);
+        // Claude API has limits, so keep only recent messages if too many
+        const MAX_MESSAGES = 25; // Adjust based on your needs
+        if (messages.length > MAX_MESSAGES) {
+            // Keep the most recent messages
+            return messages.slice(-MAX_MESSAGES);
         }
-    }
 
+        return messages;
+    }
+  
+    private buildSystemPrompt(): string {
+        return `You are a helpful coding assistant. 
+      Act like a pair programmer: explain clearly, suggest improvements, and help debug or write code as needed.
+      
+      Guidelines:
+      - Be concise and actionable
+      - Prioritize readability and best practices
+      - Offer step-by-step help when debugging
+      - If the user has little or no code, suggest how to start
+      - Maintain a friendly, collaborative tone`;
+    }
+ 
     // Test connection method
     async testConnection(): Promise<boolean> {
         try {
@@ -288,7 +160,7 @@ Guidelines:
     private getMCPToolDescriptions(): string {
         const availableTools = mcpService.getAvailableTools();
         console.log('getMCPToolDescriptions - available tools:', availableTools);
-        
+
         if (availableTools.length === 0) {
             return 'No MCP tools currently available. Please start MCP servers in the MCP tab for filesystem operations.';
         }
@@ -303,7 +175,7 @@ Guidelines:
 
     private async executeMCPTool(toolName: string, input: any): Promise<string> {
         console.log('Executing MCP tool:', toolName, 'with input:', input);
-        
+
         // Parse server name and tool name from the tool name
         const parts = toolName.split('_');
         if (parts.length < 2) {
@@ -315,7 +187,7 @@ Guidelines:
 
         try {
             const result = await mcpService.callTool(serverName, actualToolName, input);
-            
+
             // Extract text content from the result
             if (result && result.content) {
                 const textContent = result.content
@@ -324,7 +196,7 @@ Guidelines:
                     .join('\n');
                 return textContent || 'Tool executed successfully';
             }
-            
+
             return JSON.stringify(result, null, 2);
         } catch (error) {
             console.error(`Failed to execute MCP tool ${toolName}:`, error);
