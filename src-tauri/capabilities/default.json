@@ -10,8 +10,8 @@
     "opener:default",
     "fs:default",
     "dialog:default",
+    "dialog:allow-open",
     "process:default",
-    "dialog:default",
     "shell:default"
   ]
 }

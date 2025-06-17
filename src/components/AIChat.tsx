@@ -12,11 +12,14 @@ import {
   Zap,
   Copy,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Terminal,
+  CheckCircle
 } from 'lucide-react';
 import type { ChatMessage } from '../App'; 
 import type { FileTab } from '../hooks/useFileManager';
 import type { ClaudeService } from '../services/claudeService';
+import { useMCP } from '../hooks/useMCP';
 
 interface AIChatProps {
   chatHistory: ChatMessage[];
@@ -25,6 +28,7 @@ interface AIChatProps {
   isAuthenticated: boolean;
   claudeService: ClaudeService | null;
   onShowAuth?: () => void;
+  workspaceRoot?: string | null;
 }
 
 const AIChat: React.FC<AIChatProps> = ({
@@ -33,13 +37,15 @@ const AIChat: React.FC<AIChatProps> = ({
   currentFile,
   isAuthenticated,
   claudeService,
-  onShowAuth
+  onShowAuth,
+  workspaceRoot
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { runningServers, availableTools } = useMCP();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,10 +89,10 @@ const AIChat: React.FC<AIChatProps> = ({
     if (!claudeService || !currentFile.content) return;
     
     const actions = {
-      analyze: () => setInput(`Analyze my ${currentFile.language} code and suggest improvements`),
-      debug: () => setInput(`Review my code for potential bugs and issues`),
-      explain: () => setInput(`Explain what this code does and how it works`),
-      optimize: () => setInput(`How can I optimize this code for better performance?`)
+      analyze: () => setInput(`Analyze my ${currentFile.language} code and suggest improvements. Use MCP tools to explore project structure if helpful.`),
+      debug: () => setInput(`Review my code for potential bugs and issues. Use filesystem tools to check related files if needed.`),
+      explain: () => setInput(`Explain what this code does and how it works. Use MCP tools to understand project context if needed.`),
+      optimize: () => setInput(`How can I optimize this code for better performance? Use filesystem tools to understand project structure if helpful.`)
     };
 
     actions[actionType]();
@@ -153,19 +159,42 @@ const AIChat: React.FC<AIChatProps> = ({
     <div className="bg-sidebar-bg flex flex-col h-full">
       {/* Header */}
       <div className="flex-shrink-0 bg-titlebar-bg border-b border-border p-3">
-        <div className="flex items-center gap-2">
-          <Bot className="w-5 h-5 text-accent" />
-          <h3 className="font-medium text-text-primary">AI Assistant</h3>
-          <div className={`w-2 h-2 rounded-full ${
-            connectionStatus.status === 'connected' ? 'bg-green-400' :
-            connectionStatus.status === 'error' ? 'bg-red-400' : 'bg-gray-400'
-          }`} title={connectionStatus.message} />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bot className="w-5 h-5 text-accent" />
+            <h3 className="font-medium text-text-primary">AI Assistant</h3>
+            <div className={`w-2 h-2 rounded-full ${
+              connectionStatus.status === 'connected' ? 'bg-green-400' :
+              connectionStatus.status === 'error' ? 'bg-red-400' : 'bg-gray-400'
+            }`} title={connectionStatus.message} />
+          </div>
+          
+          {/* MCP Status */}
+          <div className="flex items-center gap-1 text-xs">
+            <Terminal className="w-3 h-3" />
+            <span className="text-text-muted">{runningServers.length} MCP</span>
+            {runningServers.length > 0 && (
+              <CheckCircle className="w-3 h-3 text-green-400" />
+            )}
+          </div>
         </div>
         
         <div className="mt-2 text-xs text-text-muted">
           Working on: <span className="text-accent">{currentFile.name}</span>
           {currentFile.isDirty && <span className="text-warning ml-1">●</span>}
+          {workspaceRoot && (
+            <div className="mt-1">
+              Workspace: <span className="text-blue-400">{workspaceRoot.split('/').pop()}</span>
+            </div>
+          )}
         </div>
+        
+        {/* MCP Tools Info */}
+        {availableTools.length > 0 && (
+          <div className="mt-1 text-xs text-text-muted">
+            Available tools: {availableTools.reduce((acc, server) => acc + server.tools.length, 0)} from {runningServers.length} server{runningServers.length !== 1 ? 's' : ''}
+          </div>
+        )}
 
         {/* Error display */}
         {error && (
@@ -216,6 +245,12 @@ const AIChat: React.FC<AIChatProps> = ({
               <p className="text-xs text-text-muted">
                 I can see your {currentFile.language} code and I'm ready to help!
               </p>
+            )}
+            {availableTools.length > 0 && (
+              <div className="text-xs text-green-400 mt-2">
+                <p>✓ {availableTools.reduce((acc, server) => acc + server.tools.length, 0)} MCP tools available for enhanced assistance</p>
+                <p className="mt-1 text-text-muted">Try: "List files in this directory" or "Read the package.json file"</p>
+              </div>
             )}
           </div>
         )}
@@ -354,6 +389,9 @@ const AIChat: React.FC<AIChatProps> = ({
             
             <div className="text-xs text-text-muted mt-2">
               Press Enter to send, Shift+Enter for new line • Powered by Claude AI
+              {availableTools.length > 0 && (
+                <span className="text-green-400"> • MCP tools enabled</span>
+              )}
             </div>
           </>
         )}

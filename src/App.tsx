@@ -13,6 +13,7 @@ import { useFileManager } from './hooks/useFileManager';
 import { useAuth } from './hooks/useAuth';
 import { exit } from '@tauri-apps/plugin-process';
 import { message } from '@tauri-apps/plugin-dialog';
+import { mcpService } from './services/mcpService';
 // import type { FileTab } from './hooks/useFileManager';
 
 
@@ -67,22 +68,7 @@ function App() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
-
-  // Initialize chat history based on authentication state
-  // useEffect(() => {
-  //   const welcomeMessage: ChatMessage = {
-  //     id: 'welcome',
-  //     sender: 'assistant',
-  //     content: isAuthenticated
-  //       ? `Welcome back, ${user?.name}! I'm ready to help you with your coding projects. You have ${user?.aiCredits} AI credits available.`
-  //       : 'Welcome to Butler! You can start coding right away. For AI assistance, sign in to get credits and unlock intelligent code help.',
-  //     timestamp: new Date()
-  //   };
-  //   setChatHistory([welcomeMessage]);
-  // }, [isAuthenticated, user?.name, user?.aiCredits]);
-
-  // Mock MCP servers for UI demonstration - now managed by MCP service
-  // const [mcpServers] = useState<MCPServer[]>([...]);
+ 
 
   const handleEditorChange = useCallback((value: string) => {
     if (activeFileId) {
@@ -111,6 +97,8 @@ function App() {
       const folderPath = await openFolder();
       if (folderPath) {
         console.log('Folder Opened', `Successfully opened ${folderPath.split(/[/\\]/).pop()}`)
+        // Auto-open right panel when folder is opened
+        setIsRightPanelVisible(true);
       }
     } catch (err) {
       console.error('Failed to open folder:', err);
@@ -135,8 +123,7 @@ function App() {
   const handleCloseFile = useCallback((fileId: string) => {
     closeFile(fileId);
   }, [closeFile]);
-
-  // REAL CLAUDE INTEGRATION - Replace the mock implementation
+ 
   const handleSendMessage = useCallback(async (message: string) => {
 
     // Check if user has AI access
@@ -271,7 +258,7 @@ function App() {
           aiResponse = await claudeService.analyzeCode(
             currentFile.content,
             currentFile.language,
-            "Please analyze this code and provide insights on its structure, potential improvements, and best practices.",
+            "Please analyze this code and provide insights on its structure, potential improvements, and best practices. You can use MCP tools to explore the project structure if needed.",
             currentFile.name
           );
           break;
@@ -324,17 +311,8 @@ function App() {
 
   // Toggle right panel for more editor space
   const toggleRightPanel = useCallback(async () => {
-    // Check if no files are open and trying to show the AI panel
-    if (!isRightPanelVisible && files.length === 0) {
-      await message('To use the AI assistant, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
-        title: 'AI Assistant',
-        kind: 'info'
-      });
-      return;
-    }
-
     setIsRightPanelVisible(prev => !prev);
-  }, [isRightPanelVisible, files.length]);
+  }, []);
 
   // Authentication handlers
   const handleAuthenticate = useCallback(async (accessKey: string) => {
@@ -405,13 +383,6 @@ function App() {
         break;
       case 'analyze-code':
         if (!isRightPanelVisible) {
-          if (files.length === 0) {
-            await message('To use AI code analysis, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
-              title: 'AI Code Analysis',
-              kind: 'info'
-            });
-            return;
-          }
           setIsRightPanelVisible(true);
         }
         // Use real Claude instead of mock
@@ -424,7 +395,7 @@ function App() {
         handleExit();
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleQuickAIAction, isRightPanelVisible, toggleRightPanel, files.length]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, handleQuickAIAction, isRightPanelVisible, toggleRightPanel]);
 
   const handleToolCommand = useCallback(async (command: string) => {
     switch (command) {
@@ -442,52 +413,24 @@ function App() {
         break;
       case 'Analyze Code':
         if (!isRightPanelVisible) {
-          if (files.length === 0) {
-            await message('To use AI code analysis, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
-              title: 'AI Code Analysis',
-              kind: 'info'
-            });
-            return;
-          }
           setIsRightPanelVisible(true);
         }
         handleQuickAIAction('analyze');
         break;
       case 'Find Issues':
         if (!isRightPanelVisible) {
-          if (files.length === 0) {
-            await message('To use AI code review, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
-              title: 'AI Code Review',
-              kind: 'info'
-            });
-            return;
-          }
           setIsRightPanelVisible(true);
         }
         handleQuickAIAction('debug');
         break;
       case 'Explain Code':
         if (!isRightPanelVisible) {
-          if (files.length === 0) {
-            await message('To use AI code explanation, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
-              title: 'AI Code Explanation',
-              kind: 'info'
-            });
-            return;
-          }
           setIsRightPanelVisible(true);
         }
         handleQuickAIAction('explain');
         break;
       case 'Optimize Code':
         if (!isRightPanelVisible) {
-          if (files.length === 0) {
-            await message('To use AI code optimization, please open a file or create a new file first.\n\nYou can:\n• Press Ctrl+N to create a new file\n• Press Ctrl+O to open an existing file\n• Press Ctrl+Shift+O to open a folder', {
-              title: 'AI Code Optimization',
-              kind: 'info'
-            });
-            return;
-          }
           setIsRightPanelVisible(true);
         }
         handleQuickAIAction('optimize');
@@ -502,7 +445,7 @@ function App() {
         // Removed from sidebar
         break;
     }
-  }, [handleNewFile, handleOpenFile, handleSaveFile, handleQuickAIAction, isRightPanelVisible, toggleRightPanel, files.length]);
+  }, [handleNewFile, handleOpenFile, handleSaveFile, handleQuickAIAction, isRightPanelVisible, toggleRightPanel]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -557,10 +500,18 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSaveFile, toggleToolPalette, activeFileId, handleCloseFile, toggleRightPanel]);
 
+  // Update MCP service when workspace root changes
+  useEffect(() => {
+    if (workspaceRoot) {
+      mcpService.setWorkspaceRoot(workspaceRoot);
+      console.log('Updated MCP workspace root to:', workspaceRoot);
+    }
+  }, [workspaceRoot]);
+
   // Calculate the main content area width (excluding sidebar)
   const mainContentWidth = `calc(100% - ${sidebarWidth}px)`;
   const hasOpenFiles = files.length > 0;
-  const showWelcomePage = !hasOpenFiles && !showAuth;
+  const showWelcomePage = !hasOpenFiles && !workspaceRoot && !showAuth;
 
   // Auth modal overlay
   if (showAuth) {
@@ -642,7 +593,11 @@ function App() {
               <div className={`flex flex-col overflow-hidden ${isRightPanelVisible ? 'w-1/2 border-r border-border' : 'w-full'}`}>
                 {/* Tab Bar */}
                 <div className="flex h-9 bg-titlebar-bg border-b border-border items-center px-3 overflow-x-auto">
-                  {files.length === 0 ? (
+                  {files.length === 0 && workspaceRoot ? (
+                    <div className="flex items-center gap-2 bg-editor-bg px-3 py-1 rounded-t border-t border-l border-r border-border">
+                      <span className="text-sm">Project Explorer</span>
+                    </div>
+                  ) : files.length === 0 ? (
                     <div className="flex items-center gap-2 bg-editor-bg px-3 py-1 rounded-t border-t border-l border-r border-border">
                       <span className="text-sm">Welcome</span>
                     </div>
@@ -692,6 +647,7 @@ function App() {
                   onShowAuth={() => setShowAuth(true)}
                   onLogout={handleLogout}
                   onRefreshCredits={handleRefreshCredits}
+                  workspaceRoot={workspaceRoot}
                 />
               )}
             </>

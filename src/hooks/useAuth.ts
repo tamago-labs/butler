@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ClaudeService } from '../services/claudeService';
  
-const API_KEY = atob("c2stYW50LWFwaTAzLVpCQTN3ejVfT1RvTUlUd1gtM2xXMDk2bkwtSWhwbGdFLTBBRXJOakJKNmwyT2dRTjhwZXNVVHpvMG1UeWdrNndCaktvMDZKa0RLZVpRVkM2SDc1NGVnLUhVZG0yd0FB")
-
+const API_KEY = atob("c2stYW50LWFwaTAzLTFtZmdVZzZ4c3Rud2dnY2Y5UFZhcmVlbDd4dUFlOHBFcjY3WE0yTjREejZ0d2EtbVZwd0ttQXhsY3NFU0dhTjVrQXBKbk1rSV9fd3lheVBwLVJlU21BLUlMN3VWUUFB")
+ 
 export interface User {
   id: string;
   name: string;

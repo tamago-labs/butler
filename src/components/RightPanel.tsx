@@ -25,6 +25,7 @@ interface RightPanelProps {
   onShowAuth?: () => void;
   onLogout?: () => void;
   onRefreshCredits?: () => Promise<number | void>;
+  workspaceRoot?: string | null;
 }
 
 type RightPanelTab = 'ai' | 'mcp' | 'settings';
@@ -38,7 +39,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
   claudeService,
   onShowAuth,
   onLogout,
-  onRefreshCredits
+  onRefreshCredits,
+  workspaceRoot
 }) => {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('ai');
   const { runningServers } = useMCP();
@@ -75,6 +77,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
             isAuthenticated={isAuthenticated}
             claudeService={claudeService}
             onShowAuth={onShowAuth}
+            workspaceRoot={workspaceRoot}
           />
         );
       case 'mcp':

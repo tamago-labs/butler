@@ -105,11 +105,12 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
   };
 
   const handleAddServerFromTemplate = (template: MCPServerConfig) => {
-    // If adding filesystem server and none exists, use root directory
+    // If adding filesystem server and none exists, use current workspace or root directory
     if (template.category === 'filesystem' && !servers.find(s => s.config.category === 'filesystem')) {
+      const workingDir = '/home/pisuthd/Desktop/tamago-labs/butler'; // Current project directory
       const filesystemConfig: MCPServerConfig = {
         ...template,
-        args: [...template.args, '/']
+        args: [...template.args, workingDir]
       };
       addServer(filesystemConfig);
     } else {

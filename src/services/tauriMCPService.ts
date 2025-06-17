@@ -4,6 +4,7 @@ export interface TauriMCPService {
   startServer(serverName: string, command: string, args: string[]): Promise<string>;
   stopServer(serverName: string): Promise<string>;
   listServers(): Promise<string[]>;
+  sendMessage(serverName: string, message: any): Promise<any>;
 }
 
 export class TauriMCPServiceImpl implements TauriMCPService {
@@ -40,6 +41,19 @@ export class TauriMCPServiceImpl implements TauriMCPService {
     } catch (error) {
       console.error('Failed to list MCP servers:', error);
       throw new Error(`Failed to list servers: ${error}`);
+    }
+  }
+
+  async sendMessage(serverName: string, message: any): Promise<any> {
+    try {
+      const result = await invoke<any>('send_mcp_message', {
+        serverName,
+        message: JSON.stringify(message)
+      });
+      return JSON.parse(result);
+    } catch (error) {
+      console.error(`Failed to send message to MCP server ${serverName}:`, error);
+      throw new Error(`Failed to send message: ${error}`);
     }
   }
 }
