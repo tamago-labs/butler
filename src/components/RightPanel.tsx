@@ -1,10 +1,8 @@
 // src/components/RightPanel.tsx - Updated to use new MCP implementation
 import React, { useState } from 'react';
 import { 
-  Bot, 
-  Terminal,
-  Settings as SettingsIcon,
-  X,
+  Bot,  
+  Settings as SettingsIcon, 
   Wrench
 } from 'lucide-react';
 import AIChat from './AIChat';
@@ -83,9 +81,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
         );
       case 'mcp':
         return (
-          <MCPPanel
-            isAuthenticated={isAuthenticated}
-            onShowAuth={onShowAuth}
+          <MCPPanel 
           />
         );
       case 'settings':

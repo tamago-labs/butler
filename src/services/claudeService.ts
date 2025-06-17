@@ -174,7 +174,7 @@ export class ClaudeService {
     }
 
     private async executeMCPTool(toolName: string, input: any): Promise<string> {
-        console.log('Executing MCP tool:', toolName, 'with input:', input);
+        console.log('Executing MCP tool:', toolName, 'with input:', input); 
 
         // Parse server name and tool name from the tool name
         const parts = toolName.split('_');

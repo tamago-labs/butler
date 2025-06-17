@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { 
-  Terminal, 
-  Play, 
-  Square, 
+import {
+  Terminal,
+  Play,
+  Square,
   AlertCircle,
   CheckCircle,
   Plus,
@@ -26,15 +26,8 @@ import {
 import { useMCP } from '../hooks/useMCP';
 import { MCPServerConfig } from '../services/mcpService';
 
-interface MCPPanelProps {
-  isAuthenticated?: boolean;
-  onShowAuth?: () => void;
-}
 
-const MCPPanel: React.FC<MCPPanelProps> = ({
-  isAuthenticated = false,
-  onShowAuth
-}) => {
+const MCPPanel = () => {
   const {
     servers,
     runningServers,
@@ -118,34 +111,7 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
     }
     setActiveSection('servers');
   };
-
-  const handleAddCustomServer = () => {
-    if (!customServerForm.name || !customServerForm.command) {
-      return;
-    }
-
-    const argsArray = customServerForm.command.includes(' ') 
-      ? customServerForm.command.split(' ').slice(1)
-      : [];
-    
-    const config: MCPServerConfig = {
-      ...customServerForm,
-      command: customServerForm.command.split(' ')[0],
-      args: argsArray
-    };
-
-    addServer(config);
-    setCustomServerForm({
-      name: '',
-      command: '',
-      args: [],
-      description: '',
-      category: 'custom'
-    });
-    setIsAddingServer(false);
-    setActiveSection('servers');
-  };
-
+  
   const renderServers = () => (
     <div className="p-4 space-y-4">
       {/* Error Display */}
@@ -210,7 +176,7 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 {server.status === 'running' && (
                   <span className="text-xs bg-green-900/30 text-green-300 px-2 py-1 rounded">
@@ -236,11 +202,10 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
                     const action = server.status === 'running' ? stopServer : startServer;
                     action(server.config.name);
                   }}
-                  className={`p-2 rounded transition-colors ${
-                    server.status === 'running'
-                      ? 'hover:bg-red-600 text-red-400'
-                      : 'hover:bg-green-600 text-green-400'
-                  }`}
+                  className={`p-2 rounded transition-colors ${server.status === 'running'
+                    ? 'hover:bg-red-600 text-red-400'
+                    : 'hover:bg-green-600 text-green-400'
+                    }`}
                   title={
                     server.status === 'running'
                       ? `Stop ${server.config.name}`
@@ -256,7 +221,7 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
                 </button>
               </div>
             </div>
-            
+
             {server.status === 'running' && server.tools.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-600">
                 <div className="flex items-center gap-2 text-xs text-text-muted mb-2">
@@ -341,13 +306,12 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
                     </div>
                   </div>
                 </div>
-                
+
                 <button
-                  className={`px-3 py-1 rounded transition-colors text-sm ${
-                    isInstalled
-                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                      : 'bg-accent text-white hover:bg-accent-hover'
-                  }`}
+                  className={`px-3 py-1 rounded transition-colors text-sm ${isInstalled
+                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    : 'bg-accent text-white hover:bg-accent-hover'
+                    }`}
                   onClick={() => !isInstalled && handleAddServerFromTemplate(template)}
                   disabled={isInstalled}
                 >
@@ -358,7 +322,7 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
           );
         })}
       </div>
- 
+
     </div>
   );
 
@@ -479,7 +443,7 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
             No active servers to display logs for.
           </div>
         )}
-        
+
         {servers.filter(s => s.status === 'error').map((server) => (
           <div key={`error-${server.config.name}`} className="text-red-400">
             [{new Date().toLocaleTimeString()}] {server.config.name}: Error - {server.error}
@@ -505,19 +469,17 @@ const MCPPanel: React.FC<MCPPanelProps> = ({
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
-                activeSection === section.id
-                  ? 'text-accent border-b-2 border-accent'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeSection === section.id
+                ? 'text-accent border-b-2 border-accent'
+                : 'text-text-muted hover:text-text-primary'
+                }`}
             >
               <span>{section.label}</span>
               {section.count !== undefined && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  activeSection === section.id 
-                    ? 'bg-accent text-white' 
-                    : 'bg-gray-600 text-text-muted'
-                }`}>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeSection === section.id
+                  ? 'bg-accent text-white'
+                  : 'bg-gray-600 text-text-muted'
+                  }`}>
                   {section.count}
                 </span>
               )}
