@@ -1,59 +1,129 @@
 import { invoke } from '@tauri-apps/api/core';
 
 export interface TauriMCPService {
-  startServer(serverName: string, command: string, args: string[]): Promise<string>;
-  stopServer(serverName: string): Promise<string>;
-  listServers(): Promise<string[]>;
-  sendMessage(serverName: string, message: any): Promise<any>;
+  connectServer(serverName: string, command: string, args: string[]): Promise<string>;
+  disconnectServer(serverName: string): Promise<string>;
+  listConnectedServers(): Promise<string[]>;
+  listTools(serverName: string): Promise<any>;
+  callTool(serverName: string, toolName: string, args: any): Promise<any>;
+  listResources(serverName: string): Promise<any>;
+  readResource(serverName: string, uri: string): Promise<any>;
 }
 
 export class TauriMCPServiceImpl implements TauriMCPService {
-  async startServer(serverName: string, command: string, args: string[]): Promise<string> {
+  async connectServer(serverName: string, command: string, args: string[]): Promise<string> {
     try {
-      const result = await invoke<string>('start_mcp_server', {
+      const result = await invoke<string>('connect_mcp_server', {
         serverName,
         command,
         args
       });
       return result;
     } catch (error) {
-      console.error(`Failed to start MCP server ${serverName}:`, error);
-      throw new Error(`Failed to start server: ${error}`);
+      console.error(`Failed to connect MCP server ${serverName}:`, error);
+      throw new Error(`Failed to connect server: ${error}`);
     }
   }
 
-  async stopServer(serverName: string): Promise<string> {
+  async disconnectServer(serverName: string): Promise<string> {
     try {
-      const result = await invoke<string>('stop_mcp_server', {
+      const result = await invoke<string>('disconnect_mcp_server', {
         serverName
       });
       return result;
     } catch (error) {
-      console.error(`Failed to stop MCP server ${serverName}:`, error);
-      throw new Error(`Failed to stop server: ${error}`);
+      console.error(`Failed to disconnect MCP server ${serverName}:`, error);
+      throw new Error(`Failed to disconnect server: ${error}`);
     }
   }
 
-  async listServers(): Promise<string[]> {
+  async listConnectedServers(): Promise<string[]> {
     try {
-      const result = await invoke<string[]>('list_mcp_servers');
+      const result = await invoke<string[]>('list_connected_servers');
       return result;
     } catch (error) {
-      console.error('Failed to list MCP servers:', error);
+      console.error('Failed to list connected MCP servers:', error);
       throw new Error(`Failed to list servers: ${error}`);
     }
   }
 
-  async sendMessage(serverName: string, message: any): Promise<any> {
+  async listTools(serverName: string): Promise<any> {
     try {
-      const result = await invoke<any>('send_mcp_message', {
-        serverName,
-        message: JSON.stringify(message)
+      const result = await invoke<any>('list_mcp_tools', {
+        serverName
       });
-      return JSON.parse(result);
+      return result;
     } catch (error) {
-      console.error(`Failed to send message to MCP server ${serverName}:`, error);
-      throw new Error(`Failed to send message: ${error}`);
+      console.error(`Failed to list tools from MCP server ${serverName}:`, error);
+      throw new Error(`Failed to list tools: ${error}`);
+    }
+  }
+
+  async callTool(serverName: string, toolName: string, args: any): Promise<any> {
+    try {
+      const result = await invoke<any>('call_mcp_tool', {
+        serverName,
+        toolName,
+        arguments: args
+      });
+      console.log("here result: ", result)
+      return result;
+    } catch (error) {
+      console.error(`Failed to call tool ${toolName} on MCP server ${serverName}:`, error);
+      throw new Error(`Failed to call tool: ${error}`);
+    }
+  }
+
+  async listResources(serverName: string): Promise<any> {
+    try {
+      const result = await invoke<any>('list_mcp_resources', {
+        serverName
+      });
+      return result;
+    } catch (error) {
+      console.error(`Failed to list resources from MCP server ${serverName}:`, error);
+      throw new Error(`Failed to list resources: ${error}`);
+    }
+  }
+
+  async readResource(serverName: string, uri: string): Promise<any> {
+    try {
+      const result = await invoke<any>('read_mcp_resource', {
+        serverName,
+        uri
+      });
+      return result;
+    } catch (error) {
+      console.error(`Failed to read resource ${uri} from MCP server ${serverName}:`, error);
+      throw new Error(`Failed to read resource: ${error}`);
+    }
+  }
+
+  // Legacy methods for backward compatibility
+  async startServer(serverName: string, command: string, args: string[]): Promise<string> {
+    return this.connectServer(serverName, command, args);
+  }
+
+  async stopServer(serverName: string): Promise<string> {
+    return this.disconnectServer(serverName);
+  }
+
+  async listServers(): Promise<string[]> {
+    return this.listConnectedServers();
+  }
+
+  async sendMessage(serverName: string, message: any): Promise<any> {
+    // This method was used for generic messaging, now we have specific methods
+    if (message.method === 'tools/list') {
+      return this.listTools(serverName);
+    } else if (message.method === 'tools/call') {
+      return this.callTool(serverName, message.params.name, message.params.arguments);
+    } else if (message.method === 'resources/list') {
+      return this.listResources(serverName);
+    } else if (message.method === 'resources/read') {
+      return this.readResource(serverName, message.params.uri);
+    } else {
+      throw new Error(`Unsupported message method: ${message.method}`);
     }
   }
 }

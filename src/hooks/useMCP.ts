@@ -26,7 +26,7 @@ export interface UseMCPReturn {
   updateServerConfig: (serverName: string, config: Partial<MCPServerConfig>) => void;
   
   // Tool execution
-  callTool: (serverName: string, toolName: string, arguments_: Record<string, any>) => Promise<any>;
+  callTool: (serverName: string, toolName: string, args: Record<string, any>) => Promise<any>;
   readResource: (serverName: string, uri: string) => Promise<any>;
   
   // Server status
@@ -181,10 +181,10 @@ export function useMCP(): UseMCPReturn {
   }, []);
 
   // Tool execution functions
-  const callTool = useCallback(async (serverName: string, toolName: string, arguments_: Record<string, any>): Promise<any> => {
+  const callTool = useCallback(async (serverName: string, toolName: string, args: Record<string, any>): Promise<any> => {
     setError(null);
     try {
-      return await mcpService.callTool(serverName, toolName, arguments_);
+      return await mcpService.callTool(serverName, toolName, args);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Tool execution failed: ${errorMessage}`);

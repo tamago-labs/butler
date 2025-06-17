@@ -1,18 +1,4 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { 
-  ListToolsRequest,
-  ListToolsResult,
-  CallToolRequest,
-  CallToolResult,
-  ListResourcesRequest,
-  ListResourcesResult,
-  ReadResourceRequest,
-  ReadResourceResult
-} from '@modelcontextprotocol/sdk/types.js';
 import { tauriMCPService } from './tauriMCPService';
-import { readTextFile, readDir, writeTextFile } from '@tauri-apps/plugin-fs';
-import { resolveResource } from '@tauri-apps/api/path';
 
 export interface MCPServerEvent {
   type: string;
@@ -43,8 +29,6 @@ export interface MCPServerConfig {
 
 export interface MCPServerInstance {
   config: MCPServerConfig;
-  client?: Client;
-  transport?: StdioClientTransport;
   status: 'stopped' | 'starting' | 'running' | 'error';
   error?: string;
   tools: MCPTool[];
@@ -61,23 +45,18 @@ export class MCPService {
     this.setupDefaultServers();
   }
 
-  // Set workspace root for filesystem operations
   setWorkspaceRoot(path: string | null) {
     this.workspaceRoot = path;
-    // Update filesystem server with new path if it exists
     const fsServer = this.servers.get('filesystem');
     if (fsServer && path) {
-      // Update the server config with the new path
       fsServer.config.args = ['-y', '@modelcontextprotocol/server-filesystem', path];
       
-      // If server is running, restart it with new path
       if (fsServer.status === 'running') {
         console.log('Restarting filesystem server with new workspace:', path);
         this.restartServer('filesystem').catch(err => {
           console.log('Failed to restart filesystem server:', err.message);
         });
       } else {
-        // Start the server with the workspace path
         console.log('Starting filesystem server with workspace:', path);
         this.startServer('filesystem').catch(err => {
           console.log('Failed to start filesystem server:', err.message);
@@ -86,130 +65,15 @@ export class MCPService {
     }
   }
 
-  // Execute filesystem tools directly using Tauri APIs
-  private async executeFilesystemTool(toolName: string, arguments_: Record<string, any>): Promise<any> {
-    const workspaceRoot = this.workspaceRoot;
-    
-    switch (toolName) {
-      case 'list_directory': {
-        let targetPath = arguments_.path;
-        
-        // If no path provided, use workspace root
-        if (!targetPath && workspaceRoot) {
-          targetPath = workspaceRoot;
-        } else if (!targetPath) {
-          return {
-            content: [{
-              type: 'text',
-              text: 'No directory path provided and no workspace is open. Please open a folder first using File > Open Folder.'
-            }]
-          };
-        }
-        
-        // If it's a relative path, make it relative to workspace
-        if (!targetPath.startsWith('/') && workspaceRoot) {
-          targetPath = `${workspaceRoot}/${targetPath}`.replace(/\/+/g, '/');
-        }
-        
-        try {
-          const entries = await readDir(targetPath);
-          const fileList = entries.map(entry => {
-            return `${entry.isDirectory ? 'd' : '-'} ${entry.name}`;
-          }).join('\n');
-          
-          return {
-            content: [{
-              type: 'text',
-              text: `Directory listing for ${targetPath}:\n\n${fileList}`
-            }]
-          };
-        } catch (error) {
-          return {
-            content: [{
-              type: 'text',
-              text: `Unable to access directory ${targetPath}. This might be because:\n\n1. The folder wasn't opened through File > Open Folder\n2. The path doesn't exist\n3. Insufficient permissions\n\nTauri only allows access to folders you explicitly open through the file dialog.\n\nError: ${error}`
-            }]
-          };
-        }
-      }
-      
-      case 'read_file': {
-        let filePath = arguments_.path;
-        if (!filePath) {
-          throw new Error('File path is required');
-        }
-        
-        // If it's a relative path, make it relative to workspace
-        if (!filePath.startsWith('/') && workspaceRoot) {
-          filePath = `${workspaceRoot}/${filePath}`.replace(/\/+/g, '/');
-        }
-        
-        try {
-          const content = await readTextFile(filePath);
-          return {
-            content: [{
-              type: 'text',
-              text: content
-            }]
-          };
-        } catch (error) {
-          return {
-            content: [{
-              type: 'text', 
-              text: `Unable to read file ${filePath}. This might be because:\n\n1. The file is outside the opened workspace folder\n2. The file doesn't exist\n3. The file is not a text file\n\nTauri only allows reading files within folders you've opened through File > Open Folder.\n\nError: ${error}`
-            }]
-          };
-        }
-      }
-      
-      case 'write_file': {
-        let filePath = arguments_.path;
-        const content = arguments_.content;
-        
-        if (!filePath || content === undefined) {
-          throw new Error('File path and content are required');
-        }
-        
-        // If it's a relative path, make it relative to workspace
-        if (!filePath.startsWith('/') && workspaceRoot) {
-          filePath = `${workspaceRoot}/${filePath}`.replace(/\/+/g, '/');
-        }
-        
-        try {
-          await writeTextFile(filePath, content);
-          return {
-            content: [{
-              type: 'text',
-              text: `Successfully wrote to ${filePath}`
-            }]
-          };
-        } catch (error) {
-          return {
-            content: [{
-              type: 'text',
-              text: `Unable to write to file ${filePath}. This might be because:\n\n1. The location is outside the opened workspace folder\n2. The directory doesn't exist\n3. Insufficient write permissions\n\nTauri only allows writing files within folders you've opened through File > Open Folder.\n\nError: ${error}`
-            }]
-          };
-        }
-      }
-      
-      default:
-        throw new Error(`Unknown filesystem tool: ${toolName}`);
-    }
-  }
-
-  // Get current workspace root
   getWorkspaceRoot(): string | null {
     return this.workspaceRoot;
   }
 
   private setupDefaultServers() {
-    // Filesystem server as default - but don't auto-start until folder is opened
-    const defaultPath = '/';
     const filesystemServer: MCPServerConfig = {
       name: 'filesystem',
       command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-filesystem', defaultPath],
+      args: ['-y', '@modelcontextprotocol/server-filesystem', '/'],
       description: 'Provides file system operations and navigation',
       category: 'filesystem'
     };
@@ -220,11 +84,8 @@ export class MCPService {
       tools: [],
       resources: []
     });
-
-    // Don't auto-start - wait for workspace to be opened
   }
 
-  // Event handling
   addEventListener(event: string, callback: (event: MCPServerEvent) => void) {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
@@ -250,7 +111,6 @@ export class MCPService {
     }
   }
 
-  // Server management
   async startServer(serverName: string): Promise<boolean> {
     const server = this.servers.get(serverName);
     if (!server) {
@@ -265,19 +125,33 @@ export class MCPService {
       server.status = 'starting';
       this.emit('serverStatusChanged', { serverName, status: 'starting' });
 
-      // Only start the process using Tauri backend - don't create browser-side transport
-      await tauriMCPService.startServer(
+      // Connect to MCP server using real protocol
+      await tauriMCPService.connectServer(
         serverName,
         server.config.command,
         server.config.args
       );
       
+      // Load real tools from the server
+      const toolsResponse = await tauriMCPService.listTools(serverName);
+      server.tools = this.formatMCPTools(toolsResponse);
+
+      // Only try to load resources if server supports it (skip for filesystem)
+      if (serverName !== 'filesystem') {
+        try {
+          const resourcesResponse = await tauriMCPService.listResources(serverName);
+          server.resources = this.formatMCPResources(resourcesResponse);
+        } catch (error) {
+          console.log(`Server ${serverName} doesn't support resources:`, error);
+          server.resources = [];
+        }
+      } else {
+        server.resources = [];
+      }
+
       server.status = 'running';
       server.lastStarted = new Date();
       server.error = undefined;
-
-      // Load mock capabilities for now since we can't use stdio transport in browser
-      await this.loadMockCapabilities(serverName);
 
       this.emit('serverStatusChanged', { serverName, status: 'running' });
       this.emit('serverStarted', { serverName, tools: server.tools, resources: server.resources });
@@ -300,11 +174,8 @@ export class MCPService {
     }
 
     try {
-      // Stop the process using Tauri backend
-      await tauriMCPService.stopServer(serverName);
+      await tauriMCPService.disconnectServer(serverName);
       
-      server.client = undefined;
-      server.transport = undefined;
       server.status = 'stopped';
       server.tools = [];
       server.resources = [];
@@ -328,7 +199,6 @@ export class MCPService {
     return await this.startServer(serverName);
   }
 
-  // Server configuration
   addServer(config: MCPServerConfig): void {
     if (this.servers.has(config.name)) {
       throw new Error(`Server ${config.name} already exists`);
@@ -368,86 +238,35 @@ export class MCPService {
     this.emit('serverConfigUpdated', { serverName, config: server.config });
   }
 
-  // Load mock server capabilities for now
-  private async loadMockCapabilities(serverName: string): Promise<void> {
-    const server = this.servers.get(serverName);
-    if (!server) {
-      return;
+  private formatMCPTools(toolsResponse: any): MCPTool[] {
+    if (!toolsResponse || !toolsResponse.result || !toolsResponse.result.tools) {
+      return [];
     }
 
-    // Mock tools based on server category
-    switch (server.config.category) {
-      case 'filesystem':
-        server.tools = [
-          {
-            name: 'read_file',
-            description: 'Read the contents of a file',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                path: { type: 'string', description: 'Path to the file' }
-              },
-              required: ['path']
-            }
-          },
-          {
-            name: 'write_file',
-            description: 'Write content to a file',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                path: { type: 'string', description: 'Path to the file' },
-                content: { type: 'string', description: 'Content to write' }
-              },
-              required: ['path', 'content']
-            }
-          },
-          {
-            name: 'list_directory',
-            description: 'List contents of a directory',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                path: { type: 'string', description: 'Path to the directory' }
-              },
-              required: ['path']
-            }
-          }
-        ];
-        server.resources = [
-          { uri: 'file:///home', name: 'Home Directory' },
-          { uri: 'file:///tmp', name: 'Temporary Directory' }
-        ];
-        break;
-      
-      case 'git':
-        server.tools = [
-          {
-            name: 'git_status',
-            description: 'Get git repository status',
-            inputSchema: { type: 'object', properties: {} }
-          },
-          {
-            name: 'git_log',
-            description: 'Get git commit history',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                limit: { type: 'number', description: 'Number of commits to show' }
-              }
-            }
-          }
-        ];
-        break;
-        
-      default:
-        server.tools = [];
-        server.resources = [];
-    }
+    return toolsResponse.result.tools.map((tool: any) => ({
+      name: tool.name,
+      description: tool.description || tool.name,
+      inputSchema: tool.inputSchema || {}
+    }));
   }
 
-  // Tool execution - Use direct filesystem operations for now
-  async callTool(serverName: string, toolName: string, arguments_: Record<string, any>): Promise<any> {
+  private formatMCPResources(resourcesResponse: any): MCPResource[] {
+    if (!resourcesResponse || !resourcesResponse.result || !resourcesResponse.result.resources) {
+      return [];
+    }
+
+    return resourcesResponse.result.resources.map((resource: any) => ({
+      uri: resource.uri,
+      name: resource.name || resource.uri,
+      description: resource.description,
+      mimeType: resource.mimeType
+    }));
+  }
+
+  async callTool(serverName: string, toolName: string, args: Record<string, any>): Promise<any> {
+    
+    console.log("calltool: ", serverName, toolName, args)
+    
     const server = this.servers.get(serverName);
     if (!server || server.status !== 'running') {
       throw new Error(`Server ${serverName} is not running`);
@@ -459,37 +278,21 @@ export class MCPService {
     }
 
     try {
-      let result;
+
+      console.log("before tauri mcp...")
+
+      const result = await tauriMCPService.callTool(serverName, toolName, args);
       
-      // Handle filesystem tools directly using Tauri APIs
-      if (serverName === 'filesystem') {
-        result = await this.executeFilesystemTool(toolName, arguments_);
-      } else {
-        // For other servers, try Tauri messaging (when backend is implemented)
-        try {
-          result = await tauriMCPService.sendMessage(serverName, {
-            method: 'tools/call',
-            params: {
-              name: toolName,
-              arguments: arguments_
-            }
-          });
-        } catch (error) {
-          throw new Error(`MCP backend not implemented for ${serverName}`);
-        }
-      }
-      
-      this.emit('toolCalled', { serverName, toolName, arguments: arguments_, result });
+      this.emit('toolCalled', { serverName, toolName, arguments: args, result });
       
       return result;
     } catch (error) {
       console.error(`Failed to call tool ${toolName} on server ${serverName}:`, error);
-      this.emit('toolError', { serverName, toolName, arguments: arguments_, error });
+      this.emit('toolError', { serverName, toolName, arguments: args, error });
       throw error;
     }
   }
 
-  // Resource access - Use Tauri messaging
   async readResource(serverName: string, uri: string): Promise<any> {
     const server = this.servers.get(serverName);
     if (!server || server.status !== 'running') {
@@ -497,12 +300,7 @@ export class MCPService {
     }
 
     try {
-      const result = await tauriMCPService.sendMessage(serverName, {
-        method: 'resources/read',
-        params: {
-          uri
-        }
-      });
+      const result = await tauriMCPService.readResource(serverName, uri);
       
       this.emit('resourceRead', { serverName, uri, result });
       
@@ -514,7 +312,6 @@ export class MCPService {
     }
   }
 
-  // Getters
   getServers(): MCPServerInstance[] {
     return Array.from(this.servers.values());
   }
@@ -545,7 +342,6 @@ export class MCPService {
       }));
   }
 
-  // Pre-configured server templates
   getServerTemplates(): MCPServerConfig[] {
     return [
       {
@@ -554,11 +350,24 @@ export class MCPService {
         args: ['-y', '@modelcontextprotocol/server-filesystem'],
         description: 'Provides file system operations and navigation',
         category: 'filesystem'
+      },
+      {
+        name: 'git',
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-git'],
+        description: 'Git repository operations and history',
+        category: 'git'
+      },
+      {
+        name: 'sqlite',
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-sqlite'],
+        description: 'SQLite database operations',
+        category: 'database'
       }
     ];
   }
 
-  // Cleanup
   async cleanup(): Promise<void> {
     const runningServers = this.getRunningServers();
     await Promise.all(

@@ -31,7 +31,7 @@ export class ClaudeService {
         const tools = this.getMCPTools();
         const messages = this.buildConversationMessages(chatHistory, currentMessage);
 
-        console.log('Claude Service: Starting stream with conversation history:', messages.length, 'messages');
+        console.log('Claude Service: Starting stream with', messages.length, 'messages and', tools.length, 'MCP tools');
 
         try {
             const stream = await this.client.messages.create({
@@ -45,30 +45,48 @@ export class ClaudeService {
 
             let pendingToolUse: any = null;
             let pendingContent = '';
+            let isCollectingToolInput = false;
 
             for await (const chunk of stream) {
                 if (chunk.type === 'content_block_start' && chunk.content_block.type === 'tool_use') {
                     pendingToolUse = chunk.content_block;
+                    pendingContent = '';
+                    isCollectingToolInput = true;
                     console.log('Claude Service: Tool use started:', pendingToolUse.name);
                 } else if (chunk.type === 'content_block_delta') {
                     if (chunk.delta.type === 'text_delta') {
                         yield chunk.delta.text;
-                    } else if (chunk.delta.type === 'input_json_delta' && pendingToolUse) {
+                    } else if (chunk.delta.type === 'input_json_delta' && pendingToolUse && isCollectingToolInput) {
                         pendingContent += chunk.delta.partial_json;
+                        console.log('Claude Service: Accumulating tool input:', pendingContent);
                     }
-                } else if (chunk.type === 'content_block_stop' && pendingToolUse) {
+                } else if (chunk.type === 'content_block_stop' && pendingToolUse && isCollectingToolInput) {
                     // Execute the tool call
                     try {
-                        console.log('Claude Service: Executing tool with content:', pendingContent);
-                        const toolInput = JSON.parse(pendingContent);
+                        console.log('Claude Service: Executing tool with final content:', pendingContent);
+                        
+                        // Parse the accumulated JSON input
+                        let toolInput = {};
+                        if (pendingContent.trim()) {
+                            try {
+                                toolInput = JSON.parse(pendingContent);
+                            } catch (parseError) {
+                                console.error('Claude Service: Failed to parse tool input JSON:', parseError, 'Content was:', pendingContent);
+                                yield `\n\n**❌ Tool Error: ${pendingToolUse.name}**\nFailed to parse tool arguments: ${parseError}\n\n`;
+                                continue;
+                            }
+                        }
+                        
                         const result = await this.executeMCPTool(pendingToolUse.name, toolInput);
                         yield `\n\n**🔧 Tool Result: ${pendingToolUse.name}**\n${result}\n\n`;
                     } catch (toolError) {
                         console.error('Claude Service: Tool execution failed:', toolError);
                         yield `\n\n**❌ Tool Error: ${pendingToolUse.name}**\n${toolError}\n\n`;
+                    } finally {
+                        pendingToolUse = null;
+                        pendingContent = '';
+                        isCollectingToolInput = false;
                     }
-                    pendingToolUse = null;
-                    pendingContent = '';
                 }
             }
         } catch (error: any) {
@@ -145,11 +163,13 @@ export class ClaudeService {
 
         for (const serverTools of availableTools) {
             for (const tool of serverTools.tools) {
-                tools.push({
+                const formattedTool = {
                     name: `${serverTools.serverName}_${tool.name}`,
                     description: `[${serverTools.serverName}] ${tool.description}`,
                     input_schema: tool.inputSchema
-                });
+                };
+                tools.push(formattedTool);
+                console.log('Added tool for Claude:', formattedTool.name, formattedTool.description);
             }
         }
 
@@ -183,13 +203,28 @@ export class ClaudeService {
         }
 
         const serverName = parts[0];
+        
         const actualToolName = parts.slice(1).join('_');
+ 
+
+        console.log('Parsed server:', serverName, 'tool:', actualToolName);
 
         try {
             const result = await mcpService.callTool(serverName, actualToolName, input);
+            
+            console.log('MCP tool result:', result);
 
             // Extract text content from the result
-            if (result && result.content) {
+            if (result && result.result && result.result.content) {
+                const textContent = result.result.content
+                    .filter((item: any) => item.type === 'text')
+                    .map((item: any) => item.text)
+                    .join('\n');
+                return textContent || 'Tool executed successfully';
+            }
+
+            // Handle direct content array (some MCP servers return this format)
+            if (result && Array.isArray(result.content)) {
                 const textContent = result.content
                     .filter((item: any) => item.type === 'text')
                     .map((item: any) => item.text)
