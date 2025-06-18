@@ -2,9 +2,7 @@ import { useState, useCallback } from 'react';
 import { 
   readTextFile, 
   writeTextFile, 
-  readDir,
-  exists,
-  BaseDirectory 
+  readDir
 } from '@tauri-apps/plugin-fs';
 import { 
   open as openDialog, 
@@ -294,6 +292,14 @@ export const useFileManager = () => {
     }
   }, [workspaceRoot]);
 
+  // Add a simple function to refresh after AI completion
+  const refreshAfterAI = useCallback(async () => {
+    if (workspaceRoot) {
+      console.log('🔄 Refreshing file tree after AI completion...');
+      await refreshWorkspace();
+    }
+  }, [workspaceRoot, refreshWorkspace]);
+
   return {
     // State
     files,
@@ -312,6 +318,7 @@ export const useFileManager = () => {
     closeFile,
     expandDirectory,
     refreshWorkspace,
+    refreshAfterAI, // New simple refresh function
     
     // Getters
     getActiveFile,

@@ -55,6 +55,7 @@ function App() {
     closeFile,
     expandDirectory,
     refreshWorkspace,
+    refreshAfterAI,
     getActiveFile
   } = useFileManager();
 
@@ -230,6 +231,12 @@ function App() {
         ));
       }
 
+      // Refresh file tree after AI completes (in case AI created/modified files)
+      if (workspaceRoot) {
+        console.log('🔄 AI chat completed, refreshing file tree...');
+        await refreshAfterAI();
+      }
+
     } catch (claudeError: any) {
 
       console.error('The AI request failed:', claudeError);
@@ -252,7 +259,7 @@ function App() {
       // Show notification with more details for debugging
       error('AI Error', 'Failed to get AI response. Check console for details.');
     }
-  }, [hasAIAccess, useAICredit, claudeService, info, warning, error, chatHistory, setChatHistory]);
+  }, [hasAIAccess, useAICredit, claudeService, info, warning, error, chatHistory, setChatHistory, workspaceRoot, refreshAfterAI]);
 
   const handleRemoveMessage = useCallback((messageId: string) => {
     setChatHistory(prev => prev.filter(msg => msg.id !== messageId));
