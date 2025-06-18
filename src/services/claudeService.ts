@@ -128,20 +128,17 @@ export class ClaudeService {
 
     private buildSystemPrompt(): string {
         const workspaceRoot = mcpService.getWorkspaceRoot();
+        const availableTools = mcpService.getAvailableTools();
+        
         const folderInfo = workspaceRoot
-            ? `\n\nCurrent folder: ${workspaceRoot}\nYou can access files and directories within this folder using the filesystem tools.`
-            : '\n\nNo folder is currently open. Ask the user to open a folder first to access files.';
+            ? `\n\nCurrent folder: ${workspaceRoot}`
+            : '\n\nNo folder open. Ask user to open a folder first.';
+            
+        const toolsInfo = availableTools.length > 0 
+            ? `\nAvailable tools: ${availableTools.map(st => st.tools.map(t => t.name).join(', ')).join(', ')}`
+            : '';
 
-        return `You are a helpful AI assistant.${folderInfo}
-      
-      Guidelines:
-      - Always explain clearly what you’re doing.
-      - If a tool fails, explain why and suggest alternatives.
-      - Be proactive in offering related tool usage.
-      - Format file contents and directory listings clearly.
-      - When listing directories, use list_directory with the path parameter.
-      
-      Be helpful and efficient!`;
+        return `You are a helpful AI assistant.${folderInfo}${toolsInfo}\n\nBe clear, explain what you're doing, and suggest related actions.`;
     }
 
     // Test connection method
