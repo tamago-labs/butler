@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Server, 
-  Terminal, 
-  Play, 
-  Square, 
-  RefreshCw, 
-  Plus, 
-  Settings, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  Server,
+  Terminal,
+  Play,
+  Square,
+  RefreshCw,
+  Plus,
+  Settings,
+  CheckCircle,
+  AlertCircle,
   Loader2,
   Wrench,
   Database,
@@ -35,7 +35,7 @@ const MCPPanel: React.FC = () => {
     stopServer,
     restartServer,
     addServer,
-    removeServer, 
+    removeServer,
     clearError
   } = useMCP();
 
@@ -44,7 +44,7 @@ const MCPPanel: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customArgs, setCustomArgs] = useState<string>('');
   const [customName, setCustomName] = useState<string>('');
- 
+
   useEffect(() => {
     const interval = setInterval(() => {
       // Auto-refresh
@@ -69,7 +69,7 @@ const MCPPanel: React.FC = () => {
       alert('Cannot remove the default filesystem server');
       return;
     }
-    
+
     if (confirm(`Are you sure you want to remove server "${serverName}"?`)) {
       removeServer(serverName);
     }
@@ -81,7 +81,7 @@ const MCPPanel: React.FC = () => {
 
     const args = customArgs.trim() ? customArgs.split(' ') : template.args;
     const name = customName.trim() || `${template.name}-${Date.now()}`;
-    
+
     addServer({
       ...template,
       name,
@@ -137,14 +137,14 @@ const MCPPanel: React.FC = () => {
     }
   };
 
-  const getTotalToolCount = () => {
-    return availableTools.reduce((total, server) => total + server.tools.length, 0);
-  };
+  // const getTotalToolCount = () => {
+  //   return availableTools.reduce((total, server) => total + server.tools.length, 0);
+  // };
 
-  const getTotalResourceCount = () => {
-    return availableResources.reduce((total, server) => total + server.resources.length, 0);
-  };
-  
+  // const getTotalResourceCount = () => {
+  //   return availableResources.reduce((total, server) => total + server.resources.length, 0);
+  // };
+
   return (
     <div className="h-full flex flex-col bg-sidebar-bg">
       {/* Header with Tabs */}
@@ -154,7 +154,7 @@ const MCPPanel: React.FC = () => {
             <Server className="w-5 h-5 text-accent" />
             <h3 className="font-medium text-text-primary">MCP Tools</h3>
           </div>
-          
+
           {activeTab === 'servers' && (
             <button
               onClick={() => setShowAddServer(true)}
@@ -165,16 +165,15 @@ const MCPPanel: React.FC = () => {
             </button>
           )}
         </div>
-        
+
         {/* Sub-tabs */}
         <div className="flex px-3">
           <button
             onClick={() => setActiveTab('servers')}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${
-              activeTab === 'servers'
-                ? 'text-accent border-accent'
-                : 'text-text-muted border-transparent hover:text-text-primary'
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'servers'
+              ? 'text-accent border-accent'
+              : 'text-text-muted border-transparent hover:text-text-primary'
+              }`}
           >
             <Server className="w-4 h-4" />
             Servers
@@ -184,11 +183,10 @@ const MCPPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('templates')}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${
-              activeTab === 'templates'
-                ? 'text-accent border-accent'
-                : 'text-text-muted border-transparent hover:text-text-primary'
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'templates'
+              ? 'text-accent border-accent'
+              : 'text-text-muted border-transparent hover:text-text-primary'
+              }`}
           >
             <Layout className="w-4 h-4" />
             Templates
@@ -198,11 +196,10 @@ const MCPPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('logs')}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${
-              activeTab === 'logs'
-                ? 'text-accent border-accent'
-                : 'text-text-muted border-transparent hover:text-text-primary'
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'logs'
+              ? 'text-accent border-accent'
+              : 'text-text-muted border-transparent hover:text-text-primary'
+              }`}
           >
             <Activity className="w-4 h-4" />
             Logs
@@ -236,7 +233,7 @@ const MCPPanel: React.FC = () => {
                 <div className="mt-3 p-2 bg-red-900/50 border border-red-500 rounded text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-red-200">{error}</span>
-                    <button 
+                    <button
                       onClick={clearError}
                       className="text-red-400 hover:text-red-200"
                     >
@@ -270,7 +267,7 @@ const MCPPanel: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center gap-1">
                         {server.status === 'running' ? (
                           <>
@@ -301,7 +298,7 @@ const MCPPanel: React.FC = () => {
                             <Play className="w-3 h-3" />
                           </button>
                         )}
-                        
+
                         {server.config.name !== 'filesystem' && (
                           <button
                             onClick={() => handleRemoveServer(server.config.name)}
@@ -431,10 +428,11 @@ const MCPPanel: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <button
                         onClick={() => {
                           setSelectedTemplate(template.name);
+                          setCustomArgs(template.args.join(' '))
                           setShowAddServer(true);
                         }}
                         className="px-2 py-1 bg-accent hover:bg-accent-hover text-white rounded text-xs font-medium"
@@ -466,7 +464,7 @@ const MCPPanel: React.FC = () => {
                       </div>
                     </div>
 
-                    
+
                   </div>
                 ))}
               </div>
@@ -482,14 +480,14 @@ const MCPPanel: React.FC = () => {
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-sidebar-bg border border-border rounded-lg p-4 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h4 className="font-medium text-text-primary mb-3">Add MCP Server</h4>
-            
+
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-text-muted mb-1">Server Template</label>
                 <select
                   value={selectedTemplate}
                   onChange={(e) => setSelectedTemplate(e.target.value)}
-                  className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary"
+                  className="w-full   border border-border rounded px-2 py-1 text-sm text-black"
                 >
                   <option value="">Select a template...</option>
                   {serverTemplates.map((template) => (
@@ -526,7 +524,7 @@ const MCPPanel: React.FC = () => {
                       className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary h-20 resize-none"
                     />
                     <div className="text-xs text-text-muted mt-1">
-                      Leave empty to use default arguments. Web3 MCP may need to configure your private key.
+                      Leave it as default for MCPs that don't require extra parameters. For Web3 MCPs, you may need to configure your private key and network.
                     </div>
                   </div>
 

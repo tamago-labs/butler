@@ -192,7 +192,7 @@ const AIChat: React.FC<AIChatProps> = ({
             )}
             {availableTools.length > 0 && (
               <div className="text-xs text-green-400 mt-2">
-                <p>✓ {availableTools.reduce((acc, server) => acc + server.tools.length, 0)} MCP tools available for enhanced assistance</p>
+                <p>✓ {availableTools.reduce((acc, server) => acc + server.tools.length, 0)} MCP tools available for assistance</p>
                 <p className="mt-1 text-text-muted">Try: "List files in this directory" or "Read the package.json file"</p>
               </div>
             )}
