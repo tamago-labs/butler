@@ -44,6 +44,7 @@ const MCPPanel: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customArgs, setCustomArgs] = useState<string>('');
   const [customName, setCustomName] = useState<string>('');
+  const [customEnv, setCustomEnv] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -81,17 +82,20 @@ const MCPPanel: React.FC = () => {
 
     const args = customArgs.trim() ? customArgs.split(' ') : template.args;
     const name = customName.trim() || `${template.name}-${Date.now()}`;
+    const env = Object.keys(customEnv).length > 0 ? customEnv : template.env;
 
     addServer({
       ...template,
       name,
-      args
+      args,
+      env
     });
 
     setShowAddServer(false);
     setSelectedTemplate('');
     setCustomArgs('');
     setCustomName('');
+    setCustomEnv({});
   };
 
   const getStatusIcon = (status: string) => {
@@ -432,7 +436,8 @@ const MCPPanel: React.FC = () => {
                       <button
                         onClick={() => {
                           setSelectedTemplate(template.name);
-                          setCustomArgs(template.args.join(' '))
+                          setCustomArgs(template.args.join(' '));
+                          setCustomEnv(template.env || {});
                           setShowAddServer(true);
                         }}
                         className="px-2 py-1 bg-accent hover:bg-accent-hover text-white rounded text-xs font-medium"
@@ -499,37 +504,92 @@ const MCPPanel: React.FC = () => {
               </div>
 
               {selectedTemplate && (
-                <>
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1">
-                      Server Name (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      placeholder={`${selectedTemplate}-${Date.now()}`}
-                      className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary"
-                    />
-                  </div>
+              <>
+              <div>
+              <label className="block text-xs text-text-muted mb-1">
+              Server Name (optional)
+              </label>
+              <input
+              type="text"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder={`${selectedTemplate}-${Date.now()}`}
+              className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary"
+              />
+              </div>
 
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1">
-                      Custom Arguments (optional)
-                    </label>
-                    <textarea
-                      value={customArgs}
-                      onChange={(e) => setCustomArgs(e.target.value)}
-                      placeholder="Enter custom arguments..."
-                      className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary h-20 resize-none"
-                    />
-                    <div className="text-xs text-text-muted mt-1">
-                      Leave it as default for MCPs that don't require extra parameters. For Web3 MCPs, you may need to configure your private key and network.
-                    </div>
-                  </div>
+              <div>
+              <label className="block text-xs text-text-muted mb-1">
+              Custom Arguments (optional)
+              </label>
+              <textarea
+              value={customArgs}
+              onChange={(e) => setCustomArgs(e.target.value)}
+              placeholder="Enter custom arguments..."
+              className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary h-20 resize-none"
+              />
+              <div className="text-xs text-text-muted mt-1">
+              Leave it as default for MCPs that don't require extra parameters. For Web3 MCPs, you may need to configure your private key and network.
+              </div>
+              </div>
 
-                </>
-              )}
+                {/* Environment Variables Section */}
+                  <div>
+                  <label className="block text-xs text-text-muted mb-1">
+                    Environment Variables
+                  </label>
+                  <div className="border border-border rounded bg-gray-700 p-2">
+                    {Object.entries(customEnv).map(([key, value]) => (
+                      <div key={key} className="flex gap-2 mb-2 last:mb-0">
+                        <input
+                          type="text"
+                          value={key}
+                          onChange={(e) => {
+                            const newEnv = { ...customEnv };
+                            delete newEnv[key];
+                            newEnv[e.target.value] = value;
+                            setCustomEnv(newEnv);
+                          }}
+                          placeholder="Key"
+                          className="flex-1 bg-gray-600 border border-border rounded px-2 py-1 text-xs text-text-primary"
+                        />
+                        <input
+                          type={key.toLowerCase().includes('key') || key.toLowerCase().includes('secret') ? 'password' : 'text'}
+                          value={value}
+                          onChange={(e) => {
+                            setCustomEnv({ ...customEnv, [key]: e.target.value });
+                          }}
+                          placeholder="Value"
+                          className="flex-1 bg-gray-600 border border-border rounded px-2 py-1 text-xs text-text-primary"
+                        />
+                        <button
+                          onClick={() => {
+                            const newEnv = { ...customEnv };
+                            delete newEnv[key];
+                            setCustomEnv(newEnv);
+                          }}
+                          className="p-1 hover:bg-red-700 rounded text-red-400 hover:text-red-300"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    <button
+                      onClick={() => {
+                        setCustomEnv({ ...customEnv, '': '' });
+                      }}
+                      className="w-full mt-2 py-1 border border-dashed border-border rounded text-xs text-text-muted hover:text-text-primary hover:border-accent transition-colors"
+                    >
+                      + Add Environment Variable
+                    </button>
+                  </div>
+                  <div className="text-xs text-text-muted mt-1">
+                    Set environment variables like API keys. Values are masked for security.
+                  </div>
+                </div>
+              </>
+            )}
             </div>
 
             <div className="flex gap-2 mt-4">
@@ -546,6 +606,7 @@ const MCPPanel: React.FC = () => {
                   setSelectedTemplate('');
                   setCustomArgs('');
                   setCustomName('');
+                  setCustomEnv({});
                 }}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-text-primary py-1.5 px-3 rounded text-sm"
               >

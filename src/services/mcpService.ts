@@ -141,14 +141,16 @@ export class MCPService {
 
       this.logger.info('mcp', `Starting MCP server ${serverName}`, {
         command: server.config.command,
-        args: server.config.args
+        args: server.config.args,
+        env: server.config.env
       });
 
-      // Connect to MCP server using real protocol
-      await tauriMCPService.connectServer(
+      // Connect to MCP server using real protocol with environment variables
+      await tauriMCPService.connectServerWithEnv(
         serverName,
         server.config.command,
-        server.config.args
+        server.config.args,
+        server.config.env || {}
       );
 
       // Load real tools from the server
@@ -385,7 +387,10 @@ export class MCPService {
       {
         name: 'nodit-mcp',
         command: 'npx',
-        args: ['-y', '@noditlabs/nodit-mcp-server', '--NODIT_API_KEY=YOUR_API_KEY'],
+        args: ['@noditlabs/nodit-mcp-server@latest'],
+        env: {
+          NODIT_API_KEY: 'YOUR_NODIT_API_KEY'
+        },
         description: 'Provides tools to discover and interact with Nodit Web3 APIs and data infrastructure.',
         category: 'web3'
       },

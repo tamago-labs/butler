@@ -7,6 +7,9 @@ use serde_json::Value;
 mod mcp;
 use mcp::MCPClient;
 
+#[cfg(test)]
+mod test;
+
 type MCPClients = Arc<Mutex<HashMap<String, MCPClient>>>;
 
 #[tauri::command]
@@ -32,6 +35,36 @@ async fn connect_mcp_server(
 
     clients_map.insert(server_name.clone(), client);
     Ok(format!("Connected to MCP server: {}", server_name))
+}
+
+#[tauri::command]
+async fn connect_mcp_server_with_env(
+    server_name: String,
+    command: String,
+    args: Vec<String>,
+    env: HashMap<String, String>,
+    clients: State<'_, MCPClients>,
+) -> Result<String, String> {
+    println!("[DEBUG] connect_mcp_server_with_env called for {}", server_name);
+    println!("[DEBUG] Command: {} {:?}", command, args);
+    println!("[DEBUG] Environment variables: {:?}", env.keys().collect::<Vec<_>>());
+    
+    let mut clients_map = clients.lock().await;
+    
+    if clients_map.contains_key(&server_name) {
+        return Err(format!("Server {} is already connected", server_name));
+    }
+
+    match MCPClient::new_with_env(command.clone(), args.clone(), env).await {
+        Ok(client) => {
+            clients_map.insert(server_name.clone(), client);
+            Ok(format!("Connected to MCP server with environment: {}", server_name))
+        },
+        Err(e) => {
+            println!("[ERROR] Failed to connect {}: {}", server_name, e);
+            Err(format!("Failed to connect to {}: {}", server_name, e))
+        }
+    }
 }
 
 #[tauri::command]
@@ -133,6 +166,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             connect_mcp_server,
+            connect_mcp_server_with_env,
             disconnect_mcp_server,
             list_mcp_tools,
             call_mcp_tool,

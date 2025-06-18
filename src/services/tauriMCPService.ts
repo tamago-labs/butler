@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 export interface TauriMCPService {
   connectServer(serverName: string, command: string, args: string[]): Promise<string>;
+  connectServerWithEnv(serverName: string, command: string, args: string[], env: Record<string, string>): Promise<string>;
   disconnectServer(serverName: string): Promise<string>;
   listConnectedServers(): Promise<string[]>;
   listTools(serverName: string): Promise<any>;
@@ -22,6 +23,23 @@ export class TauriMCPServiceImpl implements TauriMCPService {
     } catch (error) {
       console.error(`Failed to connect MCP server ${serverName}:`, error);
       throw new Error(`Failed to connect server: ${error}`);
+    }
+  }
+
+  async connectServerWithEnv(serverName: string, command: string, args: string[], env: Record<string, string>): Promise<string> {
+    try {
+      const result = await invoke<string>('connect_mcp_server_with_env', {
+        serverName,
+        command,
+        args,
+        env
+      });
+      return result;
+    } catch (error) {
+      console.error(`Failed to connect MCP server ${serverName} with env:`, error);
+      // Fallback to regular connect if Tauri backend doesn't support env yet
+      console.warn('Falling back to regular connect without env vars');
+      return this.connectServer(serverName, command, args);
     }
   }
 

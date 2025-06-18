@@ -16,13 +16,29 @@ pub struct MCPClient {
 
 impl MCPClient {
     pub async fn new(command: String, args: Vec<String>) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        Self::new_with_env(command, args, HashMap::new()).await
+    }
+
+    pub async fn new_with_env(
+        command: String, 
+        args: Vec<String>, 
+        env: HashMap<String, String>
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         println!("[MCP] Starting server: {} {:?}", command, args);
+        if !env.is_empty() {
+            println!("[MCP] Environment variables: {:?}", env.keys().collect::<Vec<_>>());
+        }
         
         let mut cmd = Command::new(&command);
         cmd.args(&args);
         cmd.stdin(std::process::Stdio::piped());
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
+
+        // Add environment variables
+        for (key, value) in env {
+            cmd.env(key, value);
+        }
 
         let mut process = cmd.spawn()?;
 
