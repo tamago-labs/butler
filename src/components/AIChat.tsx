@@ -16,7 +16,8 @@ import {
   Terminal,
   CheckCircle,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Square
 } from 'lucide-react';
 import type { ChatMessage } from '../App'; 
 import type { FileTab } from '../hooks/useFileManager';
@@ -53,6 +54,7 @@ const AIChat: React.FC<AIChatProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { runningServers, availableTools } = useMCP();
@@ -92,13 +94,29 @@ const AIChat: React.FC<AIChatProps> = ({
     setError(null);
     setIsLoading(true);
     
+    // Create new abort controller for this request
+    const controller = new AbortController();
+    setAbortController(controller);
+    
     try {
       await onSendMessage(message);
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      setError(error.message || 'Failed to send message. Please try again.');
+      if (error.name !== 'AbortError') {
+        setError(error.message || 'Failed to send message. Please try again.');
+      }
     } finally {
       setIsLoading(false);
+      setAbortController(null);
+    }
+  };
+
+  const handleStop = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setIsLoading(false);
+      setError(null);
     }
   };
  
@@ -335,7 +353,17 @@ const AIChat: React.FC<AIChatProps> = ({
               <Bot className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs text-text-muted mb-1">Claude</div>
+              <div className="text-xs text-text-muted mb-1 flex items-center justify-between">
+                
+                <button
+                  onClick={handleStop}
+                  className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                  title="Stop generation"
+                >
+                  <Square className="w-3 h-3" />
+                  Stop
+                </button>
+              </div>
               <div className="flex items-center gap-2 text-sm text-text-muted">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Thinking...</span>
@@ -384,7 +412,7 @@ const AIChat: React.FC<AIChatProps> = ({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder={isAtLimit ? `Message limit reached (${MAX_MESSAGES}). Remove messages to continue.` : "Ask AI anything about your code..."}
+                  placeholder={isAtLimit ? `Message limit reached (${MAX_MESSAGES}). Remove messages to continue.` : "Ask AI anything..."}
                   className="w-full bg-gray-700 border border-border rounded px-3 py-2 resize-none text-text-primary focus:outline-none focus:border-accent transition-colors"
                   style={{ minHeight: '40px' }}
                   disabled={isLoading || isAtLimit}
@@ -393,12 +421,18 @@ const AIChat: React.FC<AIChatProps> = ({
               </div>
               
               <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading || isAtLimit}
-                className="px-3 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                onClick={isLoading ? handleStop : handleSend}
+                disabled={(!input.trim() && !isLoading) || isAtLimit}
+                className={`px-3 h-[40px] py-2 my-auto text-white rounded transition-colors flex-shrink-0 ${
+                  isLoading 
+                    ? 'bg-red-500 hover:bg-red-600' 
+                    : 'bg-accent hover:bg-accent-hover'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <>
+                    <Square className="w-4 h-4" />
+                  </>
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
@@ -406,7 +440,7 @@ const AIChat: React.FC<AIChatProps> = ({
             </div>
             
             <div className="text-xs text-text-muted mt-2">
-              Press Enter to send, Shift+Enter for new line • Powered by Claude AI
+              Press Enter to send, Shift+Enter for new line
               {availableTools.length > 0 && (
                 <span className="text-green-400"> • MCP tools enabled</span>
               )}
