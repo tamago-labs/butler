@@ -12,6 +12,7 @@ export interface ChatMessage {
     sender: 'user' | 'assistant';
     content: string;
     timestamp: Date;
+    stopReason?: string;
 }
 
 export class ClaudeService {
@@ -32,72 +33,143 @@ export class ClaudeService {
     ): AsyncGenerator<string, { stopReason?: string }, unknown> {
         const systemPrompt = this.buildSystemPrompt();
         const tools = this.getMCPTools();
-        const messages = this.buildConversationMessages(chatHistory, currentMessage);
+        let messages = this.buildConversationMessages(chatHistory, currentMessage);
 
         console.log('Claude Service: Starting stream with', messages.length, 'messages and', tools.length, 'MCP tools');
 
         let finalStopReason: string | undefined;
 
         try {
-            const stream = await this.client.messages.create({
-                model: "claude-sonnet-4-20250514",
-                max_tokens: 4000,
-                system: systemPrompt,
-                tools: tools.length > 0 ? tools : undefined,
-                messages: messages,
-                stream: true
-            });
+            // Continue streaming until no more tools are needed
+            while (true) {
+                const stream = await this.client.messages.create({
+                    model: "claude-sonnet-4-20250514",
+                    max_tokens: 4000,
+                    system: systemPrompt,
+                    tools: tools.length > 0 ? tools : undefined,
+                    messages: messages,
+                    stream: true
+                });
 
-            let pendingToolUse: any = null;
-            let pendingContent = '';
-            let isCollectingToolInput = false;
+                let currentResponseContent: any[] = [];
+                let pendingToolUses: any[] = [];
+                let hasToolUse = false;
+                let streamedText = '';
 
-            for await (const chunk of stream) {
-                if (chunk.type === 'message_delta' && chunk.delta.stop_reason) {
-                    finalStopReason = chunk.delta.stop_reason;
-                    this.logger.info('claude', `Stream ended with stop_reason: ${finalStopReason}. Type "continue" if you wish to proceed.`);
-                } else if (chunk.type === 'content_block_start' && chunk.content_block.type === 'tool_use') {
-                    pendingToolUse = chunk.content_block;
-                    pendingContent = '';
-                    isCollectingToolInput = true;
-                    this.logger.info('claude', `Tool use started: ${pendingToolUse.name}`);
-                } else if (chunk.type === 'content_block_delta') {
-                    if (chunk.delta.type === 'text_delta') {
-                        yield chunk.delta.text;
-                    } else if (chunk.delta.type === 'input_json_delta' && pendingToolUse && isCollectingToolInput) {
-                        pendingContent += chunk.delta.partial_json;
-                        this.logger.debug('claude', `Accumulating tool input: ${pendingContent.slice(-50)}...`);
-                    }
-                } else if (chunk.type === 'content_block_stop' && pendingToolUse && isCollectingToolInput) {
-                    // Execute the tool call
-                    try {
-                        this.logger.info('claude', `Executing tool with final content: ${pendingContent}`);
-
-                        // Parse the accumulated JSON input
-                        let toolInput = {};
-                        if (pendingContent.trim()) {
-                            try {
-                                toolInput = JSON.parse(pendingContent);
-                            } catch (parseError) {
-                                this.logger.error('claude', `Failed to parse tool input JSON: ${parseError}`, { content: pendingContent });
-                                yield `\n\n**❌ Tool Error: ${pendingToolUse.name}**\nFailed to parse tool arguments: ${parseError}\n\n`;
-                                continue;
+                for await (const chunk of stream) {
+                    if (chunk.type === 'message_delta' && chunk.delta.stop_reason) {
+                        finalStopReason = chunk.delta.stop_reason;
+                        this.logger.info('claude', `Stream ended with stop_reason: ${finalStopReason}`);
+                    } else if (chunk.type === 'content_block_start') {
+                        if (chunk.content_block.type === 'tool_use') {
+                            hasToolUse = true;
+                            pendingToolUses.push({
+                                id: chunk.content_block.id,
+                                name: chunk.content_block.name,
+                                input: {},
+                                inputJson: ''
+                            });
+                            // Show brief tool usage indicator
+                            yield `\n\n🔧 Using ${chunk.content_block.name}...\n`;
+                        }
+                    } else if (chunk.type === 'content_block_delta') {
+                        if (chunk.delta.type === 'text_delta') {
+                            // Stream text content to user
+                            yield chunk.delta.text;
+                            streamedText += chunk.delta.text;
+                        } else if (chunk.delta.type === 'input_json_delta') {
+                            // Accumulate tool input
+                            const lastTool = pendingToolUses[pendingToolUses.length - 1];
+                            if (lastTool) {
+                                lastTool.inputJson += chunk.delta.partial_json;
                             }
                         }
-
-                        const result = await this.executeMCPTool(pendingToolUse.name, toolInput);
-                        this.logger.info('claude', `Tool executed successfully: ${pendingToolUse.name}`);
-                        yield `\n\n**🔧 Tool Result: ${pendingToolUse.name}**\n${result}\n\n`;
-                    } catch (toolError) {
-                        this.logger.error('claude', `Tool execution failed: ${pendingToolUse.name}`, { error: toolError.message });
-                        yield `\n\n**❌ Tool Error: ${pendingToolUse.name}**\n${toolError}\n\n`;
-                    } finally {
-                        pendingToolUse = null;
-                        pendingContent = '';
-                        isCollectingToolInput = false;
+                    } else if (chunk.type === 'content_block_stop') {
+                        // Finalize tool input if this was a tool block
+                        const lastTool = pendingToolUses[pendingToolUses.length - 1];
+                        if (lastTool && lastTool.inputJson) {
+                            try {
+                                lastTool.input = JSON.parse(lastTool.inputJson);
+                            } catch (parseError) {
+                                this.logger.error('claude', `Failed to parse tool input JSON: ${parseError}`);
+                                yield `\n❌ Tool input parsing failed\n`;
+                            }
+                        }
                     }
                 }
+
+                // If no tools were used, we're done
+                if (!hasToolUse || pendingToolUses.length === 0) {
+                    break;
+                }
+
+                // Build assistant message content
+                const assistantContent: any[] = [];
+                
+                // Add text content if we have any
+                if (streamedText.trim()) {
+                    assistantContent.push({
+                        type: 'text',
+                        text: streamedText.trim()
+                    });
+                }
+
+                // Execute all pending tools and add tool uses to content
+                const toolResults: any[] = [];
+                for (const toolUse of pendingToolUses) {
+                    if (!toolUse.input || Object.keys(toolUse.input).length === 0) {
+                        continue;
+                    }
+
+                    // Add tool use to assistant content
+                    assistantContent.push({
+                        type: 'tool_use',
+                        id: toolUse.id,
+                        name: toolUse.name,
+                        input: toolUse.input
+                    });
+
+                    try {
+                        const result = await this.executeMCPTool(toolUse.name, toolUse.input);
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: result
+                        });
+                        this.logger.info('claude', `Tool executed successfully: ${toolUse.name}`);
+                    } catch (toolError: any) {
+                        this.logger.error('claude', `Tool execution failed: ${toolUse.name}`, { error: toolError.message });
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: toolUse.id,
+                            content: `Error: ${toolError.message}`,
+                            is_error: true
+                        });
+                    }
+                }
+
+                // Only add messages if we have content
+                if (assistantContent.length > 0) {
+                    messages.push({
+                        role: 'assistant',
+                        content: assistantContent
+                    });
+                }
+
+                if (toolResults.length > 0) {
+                    messages.push({
+                        role: 'user',
+                        content: toolResults
+                    });
+                } else {
+                    // If no tool results, break to avoid infinite loop
+                    break;
+                }
+
+                // Clear tool indicator and continue
+                yield `\n`;
             }
+
         } catch (error: any) {
             console.error('Claude Service: API error:', error);
             throw new Error(`Claude API error: ${error.message}`);
@@ -108,6 +180,7 @@ export class ClaudeService {
 
     private buildConversationMessages(chatHistory: ChatMessage[], currentMessage: string): any[] {
         const messages: any[] = [];
+        const workspaceRoot = mcpService.getWorkspaceRoot();
 
         // Add previous conversation history (excluding the current message)
         for (const msg of chatHistory) {
@@ -117,10 +190,20 @@ export class ClaudeService {
             });
         }
 
+        // Add workspace context to current message if workspace is open
+        let contextualMessage = currentMessage;
+        if (workspaceRoot && chatHistory.length === 0) {
+            // First message of the conversation - add workspace context
+            contextualMessage = `My current folder is: ${workspaceRoot}\n\n${currentMessage}`;
+        } else if (workspaceRoot && (currentMessage.toLowerCase().includes('file') || currentMessage.toLowerCase().includes('directory') || currentMessage.toLowerCase().includes('folder'))) {
+            // Message mentions files/directories - remind about workspace
+            contextualMessage = `(Working in: ${workspaceRoot})\n${currentMessage}`;
+        }
+
         // Add current message
         messages.push({
             role: 'user',
-            content: currentMessage
+            content: contextualMessage
         });
 
         // Claude API has limits, so keep only recent messages if too many
@@ -138,8 +221,8 @@ export class ClaudeService {
         const availableTools = mcpService.getAvailableTools();
         
         const folderInfo = workspaceRoot
-            ? `\n\nCurrent folder: ${workspaceRoot}`
-            : '\n\nNo folder open. Ask user to open a folder first.';
+            ? `\n\nCurrent workspace: ${workspaceRoot}\nIMPORTANT: When users ask about files, directories, or code, they are referring to files in this workspace unless explicitly stated otherwise. Always use the workspace root as your base path for file operations.`
+            : '\n\nNo workspace open. User needs to open a folder first to work with files.';
             
         const toolsInfo = availableTools.length > 0 
             ? `\nAvailable tools: ${availableTools.map(st => st.tools.map(t => t.name).join(', ')).join(', ')}`
@@ -217,9 +300,7 @@ export class ClaudeService {
         }
 
         const serverName = parts[0];
-
         const actualToolName = parts.slice(1).join('_');
-
 
         console.log('Parsed server:', serverName, 'tool:', actualToolName);
 
