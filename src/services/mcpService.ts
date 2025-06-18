@@ -382,20 +382,13 @@ export class MCPService {
 
   getServerTemplates(): MCPServerConfig[] {
     return [
-      // {
-      //   name: 'git',
-      //   command: 'npx',
-      //   args: ['-y', '@modelcontextprotocol/server-git'],
-      //   description: 'Git repository operations and history',
-      //   category: 'git'
-      // },
-      // {
-      //   name: 'sqlite',
-      //   command: 'npx',
-      //   args: ['-y', '@modelcontextprotocol/server-sqlite'],
-      //   description: 'SQLite database operations',
-      //   category: 'database'
-      // },
+      {
+        name: 'nodit-mcp',
+        command: 'npx',
+        args: ['-y', '@noditlabs/nodit-mcp-server', '--NODIT_API_KEY=YOUR_API_KEY'],
+        description: 'Provides tools to discover and interact with Nodit Web3 APIs and data infrastructure.',
+        category: 'web3'
+      },
       {
         name: 'aptos-mcp',
         command: 'npx',
@@ -403,6 +396,20 @@ export class MCPService {
         description: 'Comprehensive Aptos blockchain DeFi toolkit with 40+ tools for DEX, lending, staking, and smart contracts',
         category: 'web3'
       },
+      {
+        name: 'sui-mcp',
+        command: 'npx',
+        args: ['-y', '@tamago-labs/sui-mcp', '--sui_private_key=YOUR_PRIVATE_KEY', '--sui_network=mainnet'],
+        description: 'Comprehensive Aptos blockchain DeFi toolkit with 40+ tools for DEX, lending, staking, and smart contracts',
+        category: 'web3'
+      },
+      {
+        name: 'xrpl-mcp',
+        command: 'npx',
+        args: ['-y', '@tamago-labs/xrpl-mcp', '--xrpl_private_key=YOUR_PRIVATE_KEY', '--xrpl_network=mainnet'],
+        description: 'MCP for the XRP Ledger allows managing wallet operations, token creation, NFTs, and DEX trading',
+        category: 'web3'
+      }, 
       {
         name: 'web-search',
         command: 'npx',
