@@ -85,14 +85,22 @@ export class ClaudeService {
                             }
                         }
                     } else if (chunk.type === 'content_block_stop') {
-                        // Finalize tool input if this was a tool block
+                        // Finalize tool input - always set input even if empty
                         const lastTool = pendingToolUses[pendingToolUses.length - 1];
-                        if (lastTool && lastTool.inputJson) {
-                            try {
-                                lastTool.input = JSON.parse(lastTool.inputJson);
-                            } catch (parseError) {
-                                this.logger.error('claude', `Failed to parse tool input JSON: ${parseError}`);
-                                yield `\n❌ Tool input parsing failed\n`;
+                        if (lastTool) {
+                            if (lastTool.inputJson.trim()) {
+                                try {
+                                    lastTool.input = JSON.parse(lastTool.inputJson);
+                                    console.log("Parsed tool input:", lastTool.input);
+                                } catch (parseError) {
+                                    this.logger.error('claude', `Failed to parse tool input JSON: ${parseError}`);
+                                    yield `\n❌ Tool input parsing failed\n`;
+                                    lastTool.input = {}; // Default to empty object
+                                }
+                            } else {
+                                // No input provided - set to empty object
+                                lastTool.input = {};
+                                console.log("Tool requires no input, set to empty object:", lastTool.name);
                             }
                         }
                     }
@@ -105,7 +113,7 @@ export class ClaudeService {
 
                 // Build assistant message content
                 const assistantContent: any[] = [];
-                
+
                 // Add text content if we have any
                 if (streamedText.trim()) {
                     assistantContent.push({
@@ -113,24 +121,25 @@ export class ClaudeService {
                         text: streamedText.trim()
                     });
                 }
+ 
 
                 // Execute all pending tools and add tool uses to content
                 const toolResults: any[] = [];
                 for (const toolUse of pendingToolUses) {
-                    if (!toolUse.input || Object.keys(toolUse.input).length === 0) {
-                        continue;
-                    }
+
+                    console.log("Processing tool use:", toolUse);
 
                     // Add tool use to assistant content
                     assistantContent.push({
                         type: 'tool_use',
                         id: toolUse.id,
                         name: toolUse.name,
-                        input: toolUse.input
+                        input: toolUse.input || {} // Ensure we always have an object
                     });
 
                     try {
-                        const result = await this.executeMCPTool(toolUse.name, toolUse.input);
+                        // Execute tool even if input is empty (some tools don't need parameters)
+                        const result = await this.executeMCPTool(toolUse.name, toolUse.input || {});
                         toolResults.push({
                             type: 'tool_result',
                             tool_use_id: toolUse.id,
@@ -138,6 +147,7 @@ export class ClaudeService {
                         });
                         this.logger.info('claude', `Tool executed successfully: ${toolUse.name}`);
                     } catch (toolError: any) {
+                        console.log("Tool execution error:", toolError);
                         this.logger.error('claude', `Tool execution failed: ${toolUse.name}`, { error: toolError.message });
                         toolResults.push({
                             type: 'tool_result',
@@ -174,7 +184,7 @@ export class ClaudeService {
             console.error('Claude Service: API error:', error);
             throw new Error(`Claude API error: ${error.message}`);
         }
-        
+
         return { stopReason: finalStopReason };
     }
 
@@ -219,12 +229,12 @@ export class ClaudeService {
     private buildSystemPrompt(): string {
         const workspaceRoot = mcpService.getWorkspaceRoot();
         const availableTools = mcpService.getAvailableTools();
-        
+
         const folderInfo = workspaceRoot
             ? `\n\nCurrent workspace: ${workspaceRoot}\nIMPORTANT: When users ask about files, directories, or code, they are referring to files in this workspace unless explicitly stated otherwise. Always use the workspace root as your base path for file operations.`
             : '\n\nNo workspace open. User needs to open a folder first to work with files.';
-            
-        const toolsInfo = availableTools.length > 0 
+
+        const toolsInfo = availableTools.length > 0
             ? `\nAvailable tools: ${availableTools.map(st => st.tools.map(t => t.name).join(', ')).join(', ')}`
             : '';
 

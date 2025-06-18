@@ -400,7 +400,7 @@ export class MCPService {
         name: 'sui-mcp',
         command: 'npx',
         args: ['-y', '@tamago-labs/sui-mcp', '--sui_private_key=YOUR_PRIVATE_KEY', '--sui_network=mainnet'],
-        description: 'Comprehensive Aptos blockchain DeFi toolkit with 40+ tools for DEX, lending, staking, and smart contracts',
+        description: 'MCP for Sui blockchain ecosytem with 33+ tools covering account management, DeFi protocols, development, staking, and market data',
         category: 'web3'
       },
       {

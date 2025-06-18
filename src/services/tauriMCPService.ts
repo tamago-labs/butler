@@ -66,7 +66,7 @@ export class TauriMCPServiceImpl implements TauriMCPService {
         toolName,
         arguments: args
       });
-      console.log("here result: ", result)
+      
       return result;
     } catch (error) {
       console.error(`Failed to call tool ${toolName} on MCP server ${serverName}:`, error);
