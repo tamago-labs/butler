@@ -21,6 +21,7 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  stopReason?: string;
 }
 
 function App() {
@@ -186,9 +187,10 @@ function App() {
 
     try {
       let accumulatedResponse = '';
+      let streamStopReason: string | undefined;
 
       // Use Claude's streaming API for real-time responses
-      const stream = claudeService.streamChatWithHistory(
+      const stream: any = claudeService.streamChatWithHistory(
         chatHistory,           // ← Pass full conversation history
         message              // ← Current message
       );
@@ -204,6 +206,17 @@ function App() {
             : msg
         ));
       }
+
+      // Get the return value which contains stopReason
+      const result = await stream.return();
+      streamStopReason = result?.value?.stopReason;
+
+      // Update the final message with stop reason
+      setChatHistory(prev => prev.map(msg =>
+        msg.id === aiMessageId
+          ? { ...msg, content: accumulatedResponse, stopReason: streamStopReason }
+          : msg
+      ));
 
       // Ensure the final message is complete
       if (!accumulatedResponse.trim()) {

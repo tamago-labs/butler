@@ -29,12 +29,14 @@ export class ClaudeService {
     async *streamChatWithHistory(
         chatHistory: ChatMessage[],
         currentMessage: string
-    ): AsyncGenerator<string, void, unknown> {
+    ): AsyncGenerator<string, { stopReason?: string }, unknown> {
         const systemPrompt = this.buildSystemPrompt();
         const tools = this.getMCPTools();
         const messages = this.buildConversationMessages(chatHistory, currentMessage);
 
         console.log('Claude Service: Starting stream with', messages.length, 'messages and', tools.length, 'MCP tools');
+
+        let finalStopReason: string | undefined;
 
         try {
             const stream = await this.client.messages.create({
@@ -51,7 +53,10 @@ export class ClaudeService {
             let isCollectingToolInput = false;
 
             for await (const chunk of stream) {
-                if (chunk.type === 'content_block_start' && chunk.content_block.type === 'tool_use') {
+                if (chunk.type === 'message_delta' && chunk.delta.stop_reason) {
+                    finalStopReason = chunk.delta.stop_reason;
+                    this.logger.info('claude', `Stream ended with stop_reason: ${finalStopReason}. Type "continue" if you wish to proceed.`);
+                } else if (chunk.type === 'content_block_start' && chunk.content_block.type === 'tool_use') {
                     pendingToolUse = chunk.content_block;
                     pendingContent = '';
                     isCollectingToolInput = true;
@@ -97,6 +102,8 @@ export class ClaudeService {
             console.error('Claude Service: API error:', error);
             throw new Error(`Claude API error: ${error.message}`);
         }
+        
+        return { stopReason: finalStopReason };
     }
 
     private buildConversationMessages(chatHistory: ChatMessage[], currentMessage: string): any[] {
