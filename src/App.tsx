@@ -474,7 +474,7 @@ function App() {
           onRefreshWorkspace={refreshWorkspace}
           onCreateFile={handleNewFile}
         />
-
+te
         {/* Main Content Area - 50/50 Split or Welcome */}
         <div className="flex flex-1 overflow-hidden" style={{ width: mainContentWidth }}>
           {showWelcomePage ? (

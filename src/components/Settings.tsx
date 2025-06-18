@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import { 
-  Key, 
-  User, 
-  Code, 
-  Brain, 
+  Key,
   RefreshCw, 
   ExternalLink, 
   AlertCircle,
   CheckCircle,
   Info,
-  CreditCard,
-  Building
+  CreditCard, 
 } from 'lucide-react';
 import type { User as UserType } from '../hooks/useAuth';
 
@@ -145,67 +141,7 @@ const Settings: React.FC<SettingsProps> = ({
             </div>
           )}
         </div>
-
-        {/* Editor Settings */}
-        <div className="bg-gray-700 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Code className="w-5 h-5 text-blue-400" />
-            <h4 className="text-sm font-medium text-text-primary">Editor</h4>
-          </div>
-          
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Font Size:</span>
-              <span className="text-text-primary">14px</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Tab Size:</span>
-              <span className="text-text-primary">2 spaces</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Word Wrap:</span>
-              <span className="text-green-400">Enabled</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Auto Save:</span>
-              <span className="text-green-400">Enabled</span>
-            </div>
-          </div>
-          
-          <div className="pt-3 border-t border-gray-600">
-            <p className="text-xs text-text-muted">
-              Editor preferences will be configurable in future updates.
-            </p>
-          </div>
-        </div>
-
-        {/* AI Settings */}
-        <div className="bg-gray-700 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Brain className="w-5 h-5 text-purple-400" />
-            <h4 className="text-sm font-medium text-text-primary">AI Assistant</h4>
-          </div>
-          
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Provider:</span>
-              <span className="text-text-primary">Tamago Labs</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Model:</span>
-              <span className="text-text-primary">GPT-4 Compatible</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Max Tokens:</span>
-              <span className="text-text-primary">4,096</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Context Window:</span>
-              <span className="text-text-primary">32k tokens</span>
-            </div>
-          </div>
-        </div>
-
+  
         {/* Billing Information */}
         {isAuthenticated && user && (
           <div className="bg-gray-700 rounded-lg p-4">
@@ -257,7 +193,7 @@ const Settings: React.FC<SettingsProps> = ({
               <span className="text-text-muted">Version:</span>
               <span className="text-text-primary">0.1.0</span>
             </div>
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
               <span className="text-text-muted">Tauri:</span>
               <span className="text-text-primary">v2.0</span>
             </div>
@@ -268,7 +204,7 @@ const Settings: React.FC<SettingsProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-text-muted">Built by:</span>
               <span className="text-accent">Tamago Labs</span>
-            </div>
+            </div> */}
           </div>
           
           <div className="pt-3 border-t border-gray-600">

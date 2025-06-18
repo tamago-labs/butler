@@ -55,7 +55,7 @@ export class MCPService {
     if (fsServer && path) {
       this.logger.info('mcp', `Updating filesystem server args with new folder: ${path}`);
       fsServer.config.args = ['-y', '@modelcontextprotocol/server-filesystem', path];
-      
+
       if (fsServer.status === 'running') {
         this.logger.info('mcp', `Restarting filesystem server with new folder: ${path}`);
         this.restartServer('filesystem').then(() => {
@@ -150,7 +150,7 @@ export class MCPService {
         server.config.command,
         server.config.args
       );
-      
+
       // Load real tools from the server
       const toolsResponse = await tauriMCPService.listTools(serverName);
       server.tools = this.formatMCPTools(toolsResponse);
@@ -184,7 +184,7 @@ export class MCPService {
       this.logger.error('mcp', `Failed to start MCP server ${serverName}`, { error: error.message });
       server.status = 'error';
       server.error = error instanceof Error ? error.message : 'Unknown error';
-      
+
       this.emit('serverStatusChanged', { serverName, status: 'error', error: server.error });
       return false;
     }
@@ -198,7 +198,7 @@ export class MCPService {
 
     try {
       await tauriMCPService.disconnectServer(serverName);
-      
+
       server.status = 'stopped';
       server.tools = [];
       server.resources = [];
@@ -211,7 +211,7 @@ export class MCPService {
       console.error(`Failed to stop MCP server ${serverName}:`, error);
       server.status = 'error';
       server.error = error instanceof Error ? error.message : 'Unknown error';
-      
+
       this.emit('serverStatusChanged', { serverName, status: 'error', error: server.error });
       return false;
     }
@@ -219,7 +219,7 @@ export class MCPService {
 
   async restartServer(serverName: string): Promise<boolean> {
     console.log(`Restarting server ${serverName}`);
-    
+
     // For filesystem server, make sure it fully stops before starting
     if (serverName === 'filesystem') {
       const server = this.servers.get(serverName);
@@ -227,12 +227,12 @@ export class MCPService {
         console.log('Filesystem server config before restart:', server.config);
       }
     }
-    
+
     await this.stopServer(serverName);
-    
+
     // Add a small delay to ensure complete shutdown
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     return await this.startServer(serverName);
   }
 
@@ -306,9 +306,9 @@ export class MCPService {
   }
 
   async callTool(serverName: string, toolName: string, args: Record<string, any>): Promise<any> {
-    
+
     console.log("calltool: ", serverName, toolName, args)
-    
+
     const server = this.servers.get(serverName);
     if (!server || server.status !== 'running') {
       throw new Error(`Server ${serverName} is not running`);
@@ -324,9 +324,9 @@ export class MCPService {
       console.log("before tauri mcp...")
 
       const result = await tauriMCPService.callTool(serverName, toolName, args);
-      
+
       this.emit('toolCalled', { serverName, toolName, arguments: args, result });
-      
+
       return result;
     } catch (error) {
       console.error(`Failed to call tool ${toolName} on server ${serverName}:`, error);
@@ -343,9 +343,9 @@ export class MCPService {
 
     try {
       const result = await tauriMCPService.readResource(serverName, uri);
-      
+
       this.emit('resourceRead', { serverName, uri, result });
-      
+
       return result;
     } catch (error) {
       console.error(`Failed to read resource ${uri} from server ${serverName}:`, error);
@@ -386,19 +386,26 @@ export class MCPService {
 
   getServerTemplates(): MCPServerConfig[] {
     return [
+      // {
+      //   name: 'git',
+      //   command: 'npx',
+      //   args: ['-y', '@modelcontextprotocol/server-git'],
+      //   description: 'Git repository operations and history',
+      //   category: 'git'
+      // },
+      // {
+      //   name: 'sqlite',
+      //   command: 'npx',
+      //   args: ['-y', '@modelcontextprotocol/server-sqlite'],
+      //   description: 'SQLite database operations',
+      //   category: 'database'
+      // },
       {
-        name: 'git',
+        name: 'aptos-mcp',
         command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-git'],
-        description: 'Git repository operations and history',
-        category: 'git'
-      },
-      {
-        name: 'sqlite',
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-sqlite'],
-        description: 'SQLite database operations',
-        category: 'database'
+        args: ['-y', '@tamago-labs/aptos-mcp', '--aptos_private_key=YOUR_PRIVATE_KEY', '--aptos_network=mainnet'],
+        description: 'Comprehensive Aptos blockchain DeFi toolkit with 40+ tools for DEX, lending, staking, and smart contracts',
+        category: 'custom'
       },
       {
         name: 'web-search',

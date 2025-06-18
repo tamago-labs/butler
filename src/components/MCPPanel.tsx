@@ -13,7 +13,11 @@ import {
   Wrench,
   Database,
   FileText,
-  Activity
+  Activity,
+  Layout,
+  Trash2,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { useMCP } from '../hooks/useMCP';
 import LogsPanel from './LogsPanel';
@@ -31,22 +35,20 @@ const MCPPanel: React.FC = () => {
     stopServer,
     restartServer,
     addServer,
-    getServerStatus,
-    getServerError,
+    removeServer, 
     clearError
   } = useMCP();
 
+  const [activeTab, setActiveTab] = useState<'servers' | 'templates' | 'logs'>('servers');
   const [showAddServer, setShowAddServer] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customArgs, setCustomArgs] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'servers' | 'logs'>('servers');
-
-  // Auto-refresh server status
+  const [customName, setCustomName] = useState<string>('');
+ 
   useEffect(() => {
     const interval = setInterval(() => {
-      // This will trigger a refresh of the server list
+      // Auto-refresh
     }, 5000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -62,21 +64,34 @@ const MCPPanel: React.FC = () => {
     await restartServer(serverName);
   };
 
+  const handleRemoveServer = async (serverName: string) => {
+    if (serverName === 'filesystem') {
+      alert('Cannot remove the default filesystem server');
+      return;
+    }
+    
+    if (confirm(`Are you sure you want to remove server "${serverName}"?`)) {
+      removeServer(serverName);
+    }
+  };
+
   const handleAddCustomServer = () => {
     const template = serverTemplates.find(t => t.name === selectedTemplate);
     if (!template) return;
 
     const args = customArgs.trim() ? customArgs.split(' ') : template.args;
+    const name = customName.trim() || `${template.name}-${Date.now()}`;
     
     addServer({
       ...template,
-      name: `${template.name}-${Date.now()}`,
+      name,
       args
     });
 
     setShowAddServer(false);
     setSelectedTemplate('');
     setCustomArgs('');
+    setCustomName('');
   };
 
   const getStatusIcon = (status: string) => {
@@ -92,6 +107,36 @@ const MCPPanel: React.FC = () => {
     }
   };
 
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'filesystem':
+        return <FileText className="w-4 h-4" />;
+      case 'database':
+        return <Database className="w-4 h-4" />;
+      case 'web':
+        return <ExternalLink className="w-4 h-4" />;
+      case 'git':
+        return <Terminal className="w-4 h-4" />;
+      default:
+        return <Wrench className="w-4 h-4" />;
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'filesystem':
+        return 'text-blue-400';
+      case 'database':
+        return 'text-green-400';
+      case 'web':
+        return 'text-purple-400';
+      case 'git':
+        return 'text-orange-400';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
   const getTotalToolCount = () => {
     return availableTools.reduce((total, server) => total + server.tools.length, 0);
   };
@@ -99,20 +144,21 @@ const MCPPanel: React.FC = () => {
   const getTotalResourceCount = () => {
     return availableResources.reduce((total, server) => total + server.resources.length, 0);
   };
-
+  
   return (
     <div className="h-full flex flex-col bg-sidebar-bg">
       {/* Header with Tabs */}
       <div className="flex-shrink-0 border-b border-border">
-        <div className="flex items-center p-3 pb-2">
+        <div className="flex items-center justify-between p-3 pb-2">
           <div className="flex items-center gap-2">
             <Server className="w-5 h-5 text-accent" />
             <h3 className="font-medium text-text-primary">MCP Tools</h3>
           </div>
+          
           {activeTab === 'servers' && (
             <button
               onClick={() => setShowAddServer(true)}
-              className="ml-auto p-1 hover:bg-gray-700 rounded text-text-muted hover:text-text-primary"
+              className="p-1 hover:bg-gray-700 rounded text-text-muted hover:text-text-primary"
               title="Add Server"
             >
               <Plus className="w-4 h-4" />
@@ -130,10 +176,24 @@ const MCPPanel: React.FC = () => {
                 : 'text-text-muted border-transparent hover:text-text-primary'
             }`}
           >
-            <Wrench className="w-4 h-4" />
+            <Server className="w-4 h-4" />
             Servers
             <span className="text-xs bg-gray-700 px-1.5 py-0.5 rounded">
               {runningServers.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('templates')}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 ${
+              activeTab === 'templates'
+                ? 'text-accent border-accent'
+                : 'text-text-muted border-transparent hover:text-text-primary'
+            }`}
+          >
+            <Layout className="w-4 h-4" />
+            Templates
+            <span className="text-xs bg-gray-700 px-1.5 py-0.5 rounded">
+              {serverTemplates.length}
             </span>
           </button>
           <button
@@ -156,7 +216,7 @@ const MCPPanel: React.FC = () => {
           <div className="h-full flex flex-col">
             {/* Status Summary */}
             <div className="flex-shrink-0 p-3">
-              <div className="grid grid-cols-3 gap-2 text-xs">
+              {/* <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="bg-gray-800 rounded p-2 text-center">
                   <div className="text-text-primary font-medium">{runningServers.length}</div>
                   <div className="text-text-muted">Running</div>
@@ -169,7 +229,7 @@ const MCPPanel: React.FC = () => {
                   <div className="text-text-primary font-medium">{getTotalResourceCount()}</div>
                   <div className="text-text-muted">Resources</div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Error Display */}
               {error && (
@@ -198,6 +258,9 @@ const MCPPanel: React.FC = () => {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(server.status)}
+                        <div className={`flex items-center gap-1 ${getCategoryColor(server.config.category)}`}>
+                          {getCategoryIcon(server.config.category)}
+                        </div>
                         <span className="font-medium text-text-primary text-sm">
                           {server.config.name}
                         </span>
@@ -236,6 +299,16 @@ const MCPPanel: React.FC = () => {
                             disabled={isLoading || server.status === 'starting'}
                           >
                             <Play className="w-3 h-3" />
+                          </button>
+                        )}
+                        
+                        {server.config.name !== 'filesystem' && (
+                          <button
+                            onClick={() => handleRemoveServer(server.config.name)}
+                            className="p-1 hover:bg-gray-700 rounded text-red-400 hover:text-red-300"
+                            title="Remove Server"
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         )}
                       </div>
@@ -328,6 +401,77 @@ const MCPPanel: React.FC = () => {
               </div>
             </div>
           </div>
+        ) : activeTab === 'templates' ? (
+          /* Templates Tab */
+          <div className="h-full flex flex-col">
+            <div className="flex-shrink-0 p-3">
+              <div className="text-xs text-text-muted mb-3">
+                Available MCP server templates. Click to add to your servers.
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 space-y-3">
+                {serverTemplates.map((template) => (
+                  <div
+                    key={template.name}
+                    className="border border-border rounded-lg p-3 bg-gray-800/50 hover:bg-gray-800/70 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-1 ${getCategoryColor(template.category)}`}>
+                          {getCategoryIcon(template.category)}
+                        </div>
+                        <div>
+                          <span className="font-medium text-text-primary text-sm">
+                            {template.name}
+                          </span>
+                          <div className="text-xs text-text-muted capitalize">
+                            {template.category}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => {
+                          setSelectedTemplate(template.name);
+                          setShowAddServer(true);
+                        }}
+                        className="px-2 py-1 bg-accent hover:bg-accent-hover text-white rounded text-xs font-medium"
+                      >
+                        Add Server
+                      </button>
+                    </div>
+
+                    <div className="text-xs text-text-muted mb-3">
+                      {template.description}
+                    </div>
+
+                    <div className="bg-gray-900/50 rounded p-2">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Terminal className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs text-text-muted">Command</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${template.command} ${template.args.join(' ')}`);
+                          }}
+                          className="ml-auto p-0.5 hover:bg-gray-700 rounded text-text-muted hover:text-text-primary"
+                          title="Copy command"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="font-mono text-xs text-green-300 break-all">
+                        {template.command} {template.args.join(' ')}
+                      </div>
+                    </div>
+
+                    
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         ) : (
           <LogsPanel />
         )}
@@ -335,8 +479,8 @@ const MCPPanel: React.FC = () => {
 
       {/* Add Server Modal */}
       {showAddServer && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-sidebar-bg border border-border rounded-lg p-4 w-full max-w-md">
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-sidebar-bg border border-border rounded-lg p-4 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h4 className="font-medium text-text-primary mb-3">Add MCP Server</h4>
             
             <div className="space-y-3">
@@ -350,28 +494,43 @@ const MCPPanel: React.FC = () => {
                   <option value="">Select a template...</option>
                   {serverTemplates.map((template) => (
                     <option key={template.name} value={template.name}>
-                      {template.name} - {template.description}
+                      {template.name} - {template.description.substring(0, 50)}...
                     </option>
                   ))}
                 </select>
               </div>
 
               {selectedTemplate && (
-                <div>
-                  <label className="block text-xs text-text-muted mb-1">
-                    Custom Arguments (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={customArgs}
-                    onChange={(e) => setCustomArgs(e.target.value)}
-                    placeholder="Enter custom arguments..."
-                    className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary"
-                  />
-                  <div className="text-xs text-text-muted mt-1">
-                    Leave empty to use default arguments
+                <>
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1">
+                      Server Name (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      placeholder={`${selectedTemplate}-${Date.now()}`}
+                      className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary"
+                    />
                   </div>
-                </div>
+
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1">
+                      Custom Arguments (optional)
+                    </label>
+                    <textarea
+                      value={customArgs}
+                      onChange={(e) => setCustomArgs(e.target.value)}
+                      placeholder="Enter custom arguments..."
+                      className="w-full bg-gray-700 border border-border rounded px-2 py-1 text-sm text-text-primary h-20 resize-none"
+                    />
+                    <div className="text-xs text-text-muted mt-1">
+                      Leave empty to use default arguments. Web3 MCP may need to configure your private key.
+                    </div>
+                  </div>
+
+                </>
               )}
             </div>
 
@@ -384,7 +543,12 @@ const MCPPanel: React.FC = () => {
                 Add Server
               </button>
               <button
-                onClick={() => setShowAddServer(false)}
+                onClick={() => {
+                  setShowAddServer(false);
+                  setSelectedTemplate('');
+                  setCustomArgs('');
+                  setCustomName('');
+                }}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-text-primary py-1.5 px-3 rounded text-sm"
               >
                 Cancel
