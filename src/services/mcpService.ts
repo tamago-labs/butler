@@ -25,7 +25,7 @@ export interface MCPServerConfig {
   args: string[];
   env?: Record<string, string>;
   description: string;
-  category: 'filesystem' | 'database' | 'web' | 'git' | 'custom';
+  category: 'filesystem' | 'database' | 'search' | 'git' | 'web3' | 'custom';
 }
 
 export interface MCPServerInstance {
@@ -180,7 +180,7 @@ export class MCPService {
       this.emit('serverStarted', { serverName, tools: server.tools, resources: server.resources });
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('mcp', `Failed to start MCP server ${serverName}`, { error: error.message });
       server.status = 'error';
       server.error = error instanceof Error ? error.message : 'Unknown error';
@@ -207,7 +207,7 @@ export class MCPService {
       this.emit('serverStopped', { serverName });
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to stop MCP server ${serverName}:`, error);
       server.status = 'error';
       server.error = error instanceof Error ? error.message : 'Unknown error';
@@ -307,8 +307,6 @@ export class MCPService {
 
   async callTool(serverName: string, toolName: string, args: Record<string, any>): Promise<any> {
 
-    console.log("calltool: ", serverName, toolName, args)
-
     const server = this.servers.get(serverName);
     if (!server || server.status !== 'running') {
       throw new Error(`Server ${serverName} is not running`);
@@ -320,8 +318,6 @@ export class MCPService {
     }
 
     try {
-
-      console.log("before tauri mcp...")
 
       const result = await tauriMCPService.callTool(serverName, toolName, args);
 
@@ -405,14 +401,14 @@ export class MCPService {
         command: 'npx',
         args: ['-y', '@tamago-labs/aptos-mcp', '--aptos_private_key=YOUR_PRIVATE_KEY', '--aptos_network=mainnet'],
         description: 'Comprehensive Aptos blockchain DeFi toolkit with 40+ tools for DEX, lending, staking, and smart contracts',
-        category: 'custom'
+        category: 'web3'
       },
       {
         name: 'web-search',
         command: 'npx',
         args: ['-y', '@modelcontextprotocol/server-web-search'],
         description: 'Web search and scraping capabilities',
-        category: 'web'
+        category: 'search'
       }
     ];
   }
