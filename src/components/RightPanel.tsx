@@ -17,6 +17,8 @@ import { useMCP } from '../hooks/useMCP';
 interface RightPanelProps {
   chatHistory: ChatMessage[];
   onSendMessage: (message: string) => Promise<void>;
+  onRemoveMessage?: (messageId: string) => void;
+  onClearChat?: () => void;
   currentFile: FileTab;
   isAuthenticated: boolean;
   user: User | null;
@@ -32,6 +34,8 @@ type RightPanelTab = 'ai' | 'mcp' | 'settings';
 const RightPanel: React.FC<RightPanelProps> = ({
   chatHistory,
   onSendMessage,
+  onRemoveMessage,
+  onClearChat,
   currentFile,
   isAuthenticated,
   user,
@@ -72,6 +76,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
           <AIChat
             chatHistory={chatHistory}
             onSendMessage={onSendMessage}
+            onRemoveMessage={onRemoveMessage}
+            onClearChat={onClearChat}
             currentFile={currentFile}
             isAuthenticated={isAuthenticated}
             claudeService={claudeService}

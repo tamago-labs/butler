@@ -14,16 +14,24 @@ import {
   RefreshCw,
   AlertCircle,
   Terminal,
-  CheckCircle
+  CheckCircle,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import type { ChatMessage } from '../App'; 
 import type { FileTab } from '../hooks/useFileManager';
 import type { ClaudeService } from '../services/claudeService';
 import { useMCP } from '../hooks/useMCP';
 
+// Constants for message management
+const MAX_MESSAGES = 25;
+const WARNING_THRESHOLD = 20;
+
 interface AIChatProps {
   chatHistory: ChatMessage[];
   onSendMessage: (message: string) => Promise<void>;
+  onRemoveMessage?: (messageId: string) => void;
+  onClearChat?: () => void;
   currentFile: FileTab;
   isAuthenticated: boolean;
   claudeService: ClaudeService | null;
@@ -34,6 +42,8 @@ interface AIChatProps {
 const AIChat: React.FC<AIChatProps> = ({
   chatHistory,
   onSendMessage,
+  onRemoveMessage,
+  onClearChat,
   currentFile,
   isAuthenticated,
   claudeService,
@@ -65,6 +75,13 @@ const AIChat: React.FC<AIChatProps> = ({
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    
+    // Check message limit before sending
+    if (messageCount >= MAX_MESSAGES) {
+      setError(`Message limit reached (${MAX_MESSAGES}). Please remove some messages or clear chat to continue.`);
+      return;
+    }
+    
     if (!claudeService) {
       setError('Claude service not available. Please check your connection.');
       return;
@@ -116,6 +133,11 @@ const AIChat: React.FC<AIChatProps> = ({
   };
 
   const connectionStatus = getConnectionStatus();
+  
+  // Message count and warnings
+  const messageCount = chatHistory.length;
+  const isNearLimit = messageCount >= WARNING_THRESHOLD;
+  const isAtLimit = messageCount >= MAX_MESSAGES;
 
   return (
     <div className="bg-sidebar-bg flex flex-col h-full">
@@ -129,14 +151,38 @@ const AIChat: React.FC<AIChatProps> = ({
               connectionStatus.status === 'connected' ? 'bg-green-400' :
               connectionStatus.status === 'error' ? 'bg-red-400' : 'bg-gray-400'
             }`} title={connectionStatus.message} />
+            
+            {/* Message Count Badge */}
+            {messageCount > 0 && (
+              <div className={`px-2 py-0.5 rounded-full text-xs ${
+                isAtLimit ? 'bg-red-500/20 text-red-400' :
+                isNearLimit ? 'bg-yellow-500/20 text-yellow-400' :
+                'bg-gray-500/20 text-gray-400'
+              }`}>
+                {messageCount}/{MAX_MESSAGES}
+              </div>
+            )}
           </div>
           
-          {/* MCP Status */}
-          <div className="flex items-center gap-1 text-xs">
-            <Terminal className="w-3 h-3" />
-            <span className="text-text-muted">{runningServers.length} MCP</span>
-            {runningServers.length > 0 && (
-              <CheckCircle className="w-3 h-3 text-green-400" />
+          {/* MCP Status and Clear Button */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-xs">
+              <Terminal className="w-3 h-3" />
+              <span className="text-text-muted">{runningServers.length} MCP</span>
+              {runningServers.length > 0 && (
+                <CheckCircle className="w-3 h-3 text-green-400" />
+              )}
+            </div>
+            
+            {/* Clear Chat Button */}
+            {messageCount > 0 && onClearChat && (
+              <button
+                onClick={onClearChat}
+                className="p-1 hover:bg-gray-700 rounded text-text-muted hover:text-text-primary transition-colors"
+                title="Clear all messages"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
             )}
           </div>
         </div>
@@ -154,6 +200,25 @@ const AIChat: React.FC<AIChatProps> = ({
         {availableTools.length > 0 && (
           <div className="mt-1 text-xs text-text-muted">
             Available tools: {availableTools.reduce((acc, server) => acc + server.tools.length, 0)} from {runningServers.length} server{runningServers.length !== 1 ? 's' : ''}
+          </div>
+        )}
+
+        {/* Message limit warning */}
+        {isAtLimit && (
+          <div className="mt-2 p-2 bg-red-900/50 border border-red-500 rounded flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <span className="text-red-200 text-xs flex-1">
+              Message limit reached ({MAX_MESSAGES}/{MAX_MESSAGES}). Please remove some messages or clear chat to continue.
+            </span>
+          </div>
+        )}
+        
+        {isNearLimit && !isAtLimit && (
+          <div className="mt-2 p-2 bg-yellow-900/50 border border-yellow-500 rounded flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-yellow-400" />
+            <span className="text-yellow-200 text-xs flex-1">
+              Approaching message limit ({messageCount}/{MAX_MESSAGES}). Consider removing old messages to prevent hitting the limit.
+            </span>
           </div>
         )}
 
@@ -244,6 +309,15 @@ const AIChat: React.FC<AIChatProps> = ({
                         <RefreshCw className="w-3 h-3" />
                       </button>
                     )}
+                    {onRemoveMessage && (
+                      <button
+                        onClick={() => onRemoveMessage(message.id)}
+                        className="p-1 hover:bg-red-700 rounded text-text-muted hover:text-red-400"
+                        title="Delete message"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 
@@ -310,17 +384,17 @@ const AIChat: React.FC<AIChatProps> = ({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder="Ask AI anything about your code..."
+                  placeholder={isAtLimit ? `Message limit reached (${MAX_MESSAGES}). Remove messages to continue.` : "Ask AI anything about your code..."}
                   className="w-full bg-gray-700 border border-border rounded px-3 py-2 resize-none text-text-primary focus:outline-none focus:border-accent transition-colors"
                   style={{ minHeight: '40px' }}
-                  disabled={isLoading}
+                  disabled={isLoading || isAtLimit}
                   rows={1}
                 />
               </div>
               
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || isLoading || isAtLimit}
                 className="px-3 py-2 bg-accent text-white rounded hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
               >
                 {isLoading ? (

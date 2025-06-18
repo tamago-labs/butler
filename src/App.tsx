@@ -125,6 +125,12 @@ function App() {
   }, [closeFile]);
 
   const handleSendMessage = useCallback(async (message: string) => {
+    // Check message limit before processing
+    const MAX_MESSAGES = 25;
+    if (chatHistory.length >= MAX_MESSAGES) {
+      warning('Message Limit Reached', `You have reached the maximum of ${MAX_MESSAGES} messages. Please remove some messages or clear the chat to continue.`);
+      return;
+    }
 
     // Check if user has AI access
     if (!hasAIAccess()) {
@@ -234,6 +240,16 @@ function App() {
       error('AI Error', 'Failed to get AI response. Check console for details.');
     }
   }, [hasAIAccess, useAICredit, claudeService, info, warning, error, chatHistory, setChatHistory]);
+
+  const handleRemoveMessage = useCallback((messageId: string) => {
+    setChatHistory(prev => prev.filter(msg => msg.id !== messageId));
+    success('Message Removed', 'Message has been deleted from the chat.');
+  }, [success]);
+
+  const handleClearChat = useCallback(() => {
+    setChatHistory([]);
+    success('Chat Cleared', 'All messages have been removed from the chat.');
+  }, [success]);
 
   // Toggle right panel for more editor space
   const toggleRightPanel = useCallback(async () => {
@@ -537,6 +553,8 @@ te
                 <RightPanel
                   chatHistory={chatHistory}
                   onSendMessage={handleSendMessage}
+                  onRemoveMessage={handleRemoveMessage}
+                  onClearChat={handleClearChat}
                   currentFile={currentFile}
                   isAuthenticated={isAuthenticated}
                   user={user}
